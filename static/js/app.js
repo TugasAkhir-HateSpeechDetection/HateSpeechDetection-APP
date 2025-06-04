@@ -101,3 +101,182 @@ function renderTable(containerId, rows, title) {
 document.getElementById('preprocessBtn').addEventListener('click', runPreprocessing);
 fetchOriginalData();
 
+// document.addEventListener('DOMContentLoaded', () => {
+//   const tokenizeBtn = document.getElementById('tokenizeBtn');
+//   if (tokenizeBtn) {
+//     tokenizeBtn.addEventListener('click', async () => {
+//       const resultDiv = document.getElementById('tokenResult');
+//       resultDiv.innerHTML = 'Memproses tokenisasi...';
+
+//       try {
+//         const response = await fetch('/run_tokenization', { method: 'POST' });
+//         const data = await response.json();
+
+//         if (data.error) {
+//           resultDiv.innerHTML = `<p class="text-red-600">Terjadi kesalahan: ${data.error}</p>`;
+//           return;
+//         }
+
+//         let tableHTML = `
+//           <table class="min-w-full table-auto border-collapse border border-gray-300">
+//             <thead>
+//               <tr class="bg-gray-200">
+//                 <th class="border border-gray-300 px-4 py-2">Tweet</th>
+//                 <th class="border border-gray-300 px-4 py-2">Tokens</th>
+//                 <th class="border border-gray-300 px-4 py-2">Token IDs</th>
+//               </tr>
+//             </thead>
+//             <tbody>
+//         `;
+
+//         data.forEach(row => {
+//           const tokens = row.Tokens.join(', ');
+//           const ids = row.Token_IDs.join(', ');
+//           tableHTML += `
+//             <tr>
+//               <td class="border px-2 py-1 text-center">${index + 1}</td>
+//               <td class="border border-gray-300 px-4 py-2">${row.Tweet}</td>
+//               <td class="border border-gray-300 px-4 py-2">${tokens}</td>
+//               <td class="border border-gray-300 px-4 py-2">${ids}</td>
+//             </tr>
+//           `;
+//         });
+
+//         tableHTML += `</tbody></table>`;
+//         resultDiv.innerHTML = tableHTML;
+
+//       } catch (error) {
+//         resultDiv.innerHTML = `<p class="text-red-600">Gagal memproses: ${error.message}</p>`;
+//       }
+//     });
+//   }
+// });
+
+// document.getElementById('tokenizeBtn').addEventListener('click', function () {
+//   fetch('/run_tokenization', {
+//     method: 'POST'
+//   })
+//     .then(response => response.json())
+//     .then(data => {
+//       if (data.error) {
+//         alert("Terjadi kesalahan: " + data.error);
+//         return;
+//       }
+
+//       // --- Tampilkan Pre Data ---
+//       const preData = data.pre_data;
+//       const preDisplay = document.querySelector('#tokenize pre');
+//       preDisplay.textContent = preData.map(row => `${row.No}. ${row.Tweet}`).join('\n');
+
+//       // --- Tampilkan Tokenization Result dalam bentuk tabel ---
+//       const tokenData = data.token_data;
+//       const resultDiv = document.getElementById('tokenResult');
+
+//       const table = document.createElement('table');
+//       table.className = 'min-w-full border border-gray-300 mt-2 text-sm';
+
+//       const thead = document.createElement('thead');
+//       thead.innerHTML = `
+//         <tr class="bg-gray-200">
+//           <th class="border px-3 py-2 text-left">No</th>
+//           <th class="border px-3 py-2 text-left">Tweet</th>
+//           <th class="border px-3 py-2 text-left">Tokens</th>
+//           <th class="border px-3 py-2 text-left">Token IDs</th>
+//         </tr>
+//       `;
+//       table.appendChild(thead);
+
+//       const tbody = document.createElement('tbody');
+
+//       tokenData.forEach(row => {
+//         const tr = document.createElement('tr');
+//         tr.innerHTML = `
+//           <td class="border px-3 py-1 align-top">${row.No}</td>
+//           <td class="border px-3 py-1 align-top">${row.Tweet}</td>
+//           <td class="border px-3 py-1 align-top">${Array.isArray(row.Tokens) ? row.Tokens.join(', ') : row.Tokens}</td>
+//           <td class="border px-3 py-1 align-top">${Array.isArray(row.Token_IDs) ? row.Token_IDs.join(', ') : row.Token_IDs}</td>
+//         `;
+//         tbody.appendChild(tr);
+//       });
+
+//       table.appendChild(tbody);
+//       resultDiv.innerHTML = ''; // Bersihkan sebelum render baru
+//       resultDiv.appendChild(table);
+//     })
+//     .catch(error => {
+//       alert("Gagal mengambil data tokenisasi: " + error);
+//     });
+// });
+
+// Fungsi untuk load preprocessed text saat halaman dimuat
+function loadPreprocessedText() {
+  fetch('/get_preprocessed')
+    .then(response => response.json())
+    .then(data => {
+      const preDisplay = document.getElementById('preTokenText');
+      if (data.error) {
+        preDisplay.textContent = "Data belum tersedia.";
+      } else {
+        const texts = data.pre_data;
+        preDisplay.textContent = texts.map(row => `${row.No}. ${row.Tweet}`).join('\n');
+      }
+    })
+    .catch(err => {
+      document.getElementById('preTokenText').textContent = "Gagal mengambil data.";
+    });
+}
+
+// Panggil saat halaman dimuat
+document.addEventListener('DOMContentLoaded', loadPreprocessedText);
+
+// Fungsi untuk tokenisasi
+document.getElementById('tokenizeBtn').addEventListener('click', function () {
+  fetch('/run_tokenization', {
+    method: 'POST'
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert("Terjadi kesalahan: " + data.error);
+        return;
+      }
+
+      const tokenData = data.token_data;
+      const resultDiv = document.getElementById('tokenResult');
+
+      const table = document.createElement('table');
+      table.className = 'min-w-full border border-gray-300 mt-2 text-sm';
+
+      const thead = document.createElement('thead');
+      thead.innerHTML = `
+        <tr class="bg-gray-200">
+          <th class="border px-3 py-2 text-left">No</th>
+          <th class="border px-3 py-2 text-left">Tweet</th>
+          <th class="border px-3 py-2 text-left">Tokens</th>
+          <th class="border px-3 py-2 text-left">Token IDs</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+
+      tokenData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="border px-3 py-1 align-top">${row.No}</td>
+          <td class="border px-3 py-1 align-top">${row.Tweet}</td>
+          <td class="border px-3 py-1 align-top">${Array.isArray(row.Tokens) ? row.Tokens.join(', ') : row.Tokens}</td>
+          <td class="border px-3 py-1 align-top">${Array.isArray(row.Token_IDs) ? row.Token_IDs.join(', ') : row.Token_IDs}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      resultDiv.innerHTML = '';
+      resultDiv.appendChild(table);
+    })
+    .catch(error => {
+      alert("Gagal mengambil data tokenisasi: " + error);
+    });
+});
+
