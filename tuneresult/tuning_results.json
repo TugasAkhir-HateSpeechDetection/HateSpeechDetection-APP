@@ -1,0 +1,26 @@
+{
+    "results": [
+        {
+            "iteration": 1,
+            "params": {
+                "epochs": 20,
+                "units": 50,
+                "learning_rate": 0.5,
+                "batch_size": 256
+            },
+            "train_acc": 0.6474,
+            "val_acc": 0.6473
+        },
+        {
+            "iteration": 2,
+            "params": {
+                "epochs": 20,
+                "units": 40,
+                "learning_rate": 0.01,
+                "batch_size": 256
+            },
+            "train_acc": 0.9926,
+            "val_acc": 0.887
+        }
+    ]
+}

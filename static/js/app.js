@@ -96,8 +96,6 @@ function renderTable(containerId, rows, title) {
   container.innerHTML = table;
 }
 
-
-
 document.getElementById('preprocessBtn').addEventListener('click', runPreprocessing);
 fetchOriginalData();
 
@@ -279,4 +277,96 @@ document.getElementById('tokenizeBtn').addEventListener('click', function () {
       alert("Gagal mengambil data tokenisasi: " + error);
     });
 });
+
+document.getElementById("btnTune").addEventListener("click", function () {
+  fetch("/tune", {
+    method: "POST",
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      const tableBody = document.querySelector("#tune table tbody");
+      tableBody.innerHTML = "";
+
+      data.results.forEach((item) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${item.iteration}</td>
+          <td>${item.params.epochs}</td>
+          <td>${item.params.units}</td>
+          <td>${item.params.learning_rate}</td>
+          <td>${item.params.batch_size}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    })
+    .catch((error) => {
+      alert("Terjadi kesalahan saat proses tuning.");
+      console.error(error);
+    });
+});
+document.getElementById('trainBtn').addEventListener('click', () => {
+  const logArea = document.getElementById('logArea');
+  logArea.textContent = 'Training dimulai...\n';
+
+  const eventSource = new EventSource('/train');
+
+  eventSource.onmessage = (event) => {
+    if (event.data === '[TRAINING_COMPLETED]') {
+      logArea.textContent += '\n[✓] Training selesai.\n';
+      eventSource.close();
+    } else {
+      logArea.textContent += event.data + '\n';
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+  };
+
+  eventSource.onerror = (err) => {
+    logArea.textContent += '\n[!] Terjadi error selama training.\n';
+    eventSource.close();
+  };
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  fetch('/best-params')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('lrCell').textContent = data.learning_rate;
+      document.getElementById('bsCell').textContent = data.batch_size;
+      document.getElementById('epochCell').textContent = data.epochs;
+      document.getElementById('unitsCell').textContent = data.units;
+    })
+    .catch(err => {
+      console.error('Gagal memuat hyperparameter:', err);
+    });
+});
+
+document.querySelector('#test button').addEventListener('click', () => {
+  const textarea = document.querySelector('#test textarea');
+  const resultList = document.querySelector('#test ul');
+  const inputText = textarea.value;
+
+  fetch('/predict', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: inputText})
+  })
+  .then(res => res.json())
+  .then(data => {
+    resultList.innerHTML = '';
+    if (data.labels.length === 0) {
+      resultList.innerHTML = '<li class="text-gray-600">Tidak terdeteksi ujaran kebencian.</li>';
+    } else {
+      data.labels.forEach(label => {
+        const li = document.createElement('li');
+        li.textContent = label;
+        resultList.appendChild(li);
+      });
+    }
+  })
+  .catch(err => {
+    resultList.innerHTML = '<li class="text-red-600">Terjadi kesalahan saat prediksi.</li>';
+    console.error(err);
+  });
+});
+
 

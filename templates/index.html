@@ -83,33 +83,29 @@
           
       
 
-      <div id="tune" class="content-section hidden">
-        <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
-        <p>Mencari kombinasi terbaik dari learning rate, batch size, epoch, dll.</p>
-        <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Mulai Tuning</button>
-      
-        <div class="mt-6">
-          <h3 class="text-lg font-semibold">Contoh Hasil Tuning:</h3>
-          <table class="w-full bg-white shadow rounded mt-2 text-sm">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="px-4 py-2">Learning Rate</th>
-                <th class="px-4 py-2">Batch Size</th>
-                <th class="px-4 py-2">Epoch</th>
-                <th class="px-4 py-2">Accuracy</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="px-4 py-2 text-center">0.001</td>
-                <td class="px-4 py-2 text-center">32</td>
-                <td class="px-4 py-2 text-center">10</td>
-                <td class="px-4 py-2 text-center">0.83</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <div id="tune" class="content-section hidden">
+            <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
+            <p>Mencari kombinasi terbaik dari learning rate, batch size, epoch, dll.</p>
+            <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" id="btnTune">Mulai Tuning</button>
+          
+            <div class="mt-6">
+              <h3 class="text-lg font-semibold">Hasil Tuning:</h3>
+              <table class="w-full bg-white shadow rounded mt-2 text-sm">
+                <thead>
+                  <tr class="bg-gray-100">
+                    <th class="px-4 py-2">Iterasi</th>
+                    <th class="px-4 py-2">Epoch</th>
+                    <th class="px-4 py-2">Units</th>
+                    <th class="px-4 py-2">Learning Rate</th>
+                    <th class="px-4 py-2">Batch Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+              </table>
+            </div>
+          </div>
       
 
       <div id="train" class="content-section hidden">
@@ -124,13 +120,15 @@
                 <th class="px-4 py-2 text-left">Learning Rate</th>
                 <th class="px-4 py-2 text-left">Batch Size</th>
                 <th class="px-4 py-2 text-left">Epoch</th>
+                <th class="px-4 py-2 text-left">Units</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="px-4 py-2">0.001</td>
-                <td class="px-4 py-2">32</td>
-                <td class="px-4 py-2">10</td>
+                <td class="px-4 py-2" id="lrCell">-</td>
+                <td class="px-4 py-2" id="bsCell">-</td>
+                <td class="px-4 py-2" id="epochCell">-</td>
+                <td class="px-4 py-2" id="unitsCell">-</td>
               </tr>
             </tbody>
           </table>
@@ -138,17 +136,15 @@
       
         <!-- Tombol Training -->
         <button id="trainBtn" class="mt-6 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Mulai Training</button>
+
       
         <!-- Progress Bar -->
-        <div class="mt-6 w-full bg-gray-200 rounded-full h-5">
-          <div id="trainProgress" class="bg-red-600 h-5 rounded-full text-xs text-white text-center leading-5" style="width: 0%">0%</div>
-        </div>
+
       
         <!-- Log hasil training -->
         <div class="mt-4">
           <h3 class="text-lg font-semibold">Log Training:</h3>
-          <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto" id="trainLog">
-      Belum ada hasil training.
+          <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto" id="logArea">
           </pre>
         </div>
       </div>
@@ -177,13 +173,12 @@
         <div class="mt-6">
           <h3 class="text-lg font-semibold">Hasil Prediksi:</h3>
           <ul class="list-disc ml-6 mt-2 text-green-700">
-            <li>Gender</li>
-            <li>Age</li>
           </ul>
         </div>
       </div>
       
 
-  <script src="static\js\app.js"></script>
+  <script src="static\js\app.js">
+  </script>
 </body>
 </html>
