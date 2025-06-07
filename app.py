@@ -7,7 +7,7 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from transformers import BertTokenizer
 from tqdm import tqdm
 import subprocess
-from tune import run_tuning
+# from tune import run_tuning
 import torch
 from transformers import BertTokenizer, BertModel
 import json
@@ -349,23 +349,23 @@ def get_preprocessed():
 #     except Exception as e:
 #         return jsonify({"error": str(e)}), 500
 
-@app.route("/tune", methods=["POST"])
-def tune():
-    print("🔧 [INFO] Endpoint /tune dipanggil.")
+# @app.route("/tune", methods=["POST"])
+# def tune():
+#     print("🔧 [INFO] Endpoint /tune dipanggil.")
 
-    try:
-        results = run_tuning()
-        print("✅ [SUCCESS] Tuning berhasil dijalankan.")
-        print("📊 [RESULT] Top 3 results:")
-        for r in results:
-            print(r)
+#     try:
+#         results = run_tuning()
+#         print("✅ [SUCCESS] Tuning berhasil dijalankan.")
+#         print("📊 [RESULT] Top 3 results:")
+#         for r in results:
+#             print(r)
 
-        return jsonify({"results": results})
+#         return jsonify({"results": results})
 
-    except Exception as e:
-        print("❌ [ERROR] Tuning gagal dijalankan.")
-        print(f"📄 [DETAIL] {str(e)}")
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+#         print("❌ [ERROR] Tuning gagal dijalankan.")
+#         print(f"📄 [DETAIL] {str(e)}")
+#         return jsonify({"error": str(e)}), 500
 
 @app.route('/train', methods=['GET'])
 def train_bigru():
