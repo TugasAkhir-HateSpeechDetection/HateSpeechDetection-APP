@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Aplikasi Pendeteksi Hate Speech</title>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="flex h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-md p-4">
+      <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">HateSpeech Detection</h1>
+      <nav class="space-y-2">
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('upload')">📂 Upload Dataset</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('preprocess')">🧹 Preprocessing</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('tokenize')">🔠 Tokenisasi</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('tune')">🎯 Tuning Hyperparameter</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('train')">📈 Training Model</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('evaluate')">📊 Evaluasi Model</button>
+        <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('test')">🧪 Testing Model</button>
+      </nav>
+    </aside>
+    <main class="flex-1 p-6 overflow-auto">
+        <div id="upload" class="content-section">
+            <h2 class="text-xl font-semibold mb-4">Upload Dataset</h2>
+            <p>Unggah file dataset (.csv) yang berisi tweet dan label multikategori.</p>
+          
+            <input type="file" id="datasetFile" accept=".csv" class="mt-4 block" />
+            <button id="uploadBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload</button>
+            <button id="showBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Tampilkan</button>
+          
+            <div id="uploadStatus" class="mt-4 font-medium"></div>
+            <div id="tableContainer" class="mt-6"></div>
+        </div>  
+          
+
+          <div id="preprocess" class="content-section hidden">
+            <h2 class="text-xl font-semibold mb-4">Pra-pemrosesan Data</h2>
+            <button id="preprocessBtn" class="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">Lakukan Preprocessing</button>
+            <div class="mt-4">
+              <h3 class="text-lg font-semibold">Sebelum Preprocessing:</h3>
+              <div id="originalData" class="mt-4"></div>
+            </div>
+
+            <div class="mt-6">
+              <h3 class="text-lg font-semibold">Setelah Preprocessing:</h3>
+              <div id="preprocessedData" class="mt-4"></div>
+            </div>
+          </div>
+
+          
+          
+
+          <div id="tokenize" class="content-section hidden">
+            <h2 class="text-xl font-semibold mb-4">Tokenisasi & Embedding</h2>
+            <!-- Tombol -->
+            <button id="tokenizeBtn" class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Lakukan Tokenisasi & Embedding</button>
+          
+            <!-- Sebelum tokenisasi -->
+            <div class="mt-4">
+              <h3 class="text-lg font-semibold">Teks Bersih:</h3>
+                <pre id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap">
+                </pre>
+            </div>
+          
+
+          
+            <!-- Setelah tokenisasi -->
+            <div class="mt-6">
+              <h3 class="text-lg font-semibold">Hasil Tokenisasi:</h3>
+              <div id="tokenResult" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
+                <!-- Tabel akan dirender di sini -->
+              </div>
+            </div>
+          </div>
+          
+      
+
+          <div id="tune" class="content-section hidden">
+            <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
+            <p>Mencari kombinasi terbaik dari learning rate, batch size, epoch, dll.</p>
+            <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" id="btnTune">Mulai Tuning</button>
+            <div id="tuningSpinner" style="display:none; margin-left: 10px;">
+              ⏳ Tuning sedang berlangsung...
+            </div>
+            <pre id="tuningLog" class="mt-4 bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
+            <div class="mt-6">
+              <h3 class="text-lg font-semibold">Hasil Tuning:</h3>
+              <table class="w-full bg-white shadow rounded mt-2 text-sm">
+                <thead>
+                  <tr class="bg-gray-100">
+                    <th class="px-4 py-2">Iterasi</th>
+                    <th class="px-4 py-2">Epoch</th>
+                    <th class="px-4 py-2">Units</th>
+                    <th class="px-4 py-2">Learning Rate</th>
+                    <th class="px-4 py-2">Batch Size</th>
+                    <th class="px-4 py-2">Val Acc</th>
+                  </tr>
+                </thead>
+                <tbody>
+                </tbody>
+              </table>
+            </div>
+          </div>
+      
+
+      <div id="train" class="content-section hidden">
+          <div class="mb-6">
+    <h2 class="text-lg font-semibold mb-2">Best Parameters</h2>
+    <table class="min-w-full bg-white border border-gray-300 rounded">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="px-4 py-2 border">Learning Rate</th>
+          <th class="px-4 py-2 border">Batch Size</th>
+          <th class="px-4 py-2 border">Epochs</th>
+          <th class="px-4 py-2 border">Units</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td id="lrCell" class="px-4 py-2 border text-center">-</td>
+          <td id="bsCell" class="px-4 py-2 border text-center">-</td>
+          <td id="epochCell" class="px-4 py-2 border text-center">-</td>
+          <td id="unitsCell" class="px-4 py-2 border text-center">-</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Spinner -->
+  <div id="spinner" class="hidden mt-4 text-center">
+    <span class="text-sm text-gray-500">Proses training sedang berjalan...</span>
+  </div>
+
+  <!-- Train Button -->
+  <div class="my-4">
+    <button id="trainBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      Mulai Training
+    </button>
+  </div>
+
+  <!-- Log Area -->
+  <div>
+    <h2 class="text-lg font-semibold mb-2">Training Log</h2>
+    <pre id="logArea" class="bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
+  </div>
+      </div>
+      
+      
+
+        <div id="evaluate" class="content-section hidden">
+          <h2 class="text-xl font-semibold mb-4">Evaluasi Model</h2>
+          <p>Menampilkan metrik seperti akurasi, precision, recall, F1.</p>
+          <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700" id="runEvaluation">Lihat Evaluasi</button>
+          <div class="mt-6">
+            <h3 class="text-lg font-semibold">Classification Report:</h3>
+            <!-- Tabel dan nilai evaluasi akan disisipkan JS di sini -->
+          </div>
+        </div>
+
+      
+
+      <div id="test" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Testing Model</h2>
+        <p>Masukkan tweet untuk melihat prediksi label kebencian.</p>
+        
+        <textarea class="w-full mt-4 p-2 border rounded" placeholder="Contoh: 'Orang ini bodoh banget!'" id="tweet-input"></textarea>
+        <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-teal-700">Cek Prediksi</button>
+      
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold">Hasil Prediksi:</h3>
+          <div id="prediction-results" class="mt-4 space-y-2">
+          </div>
+        </div>
+    </main>
+  <script src="static/js/app.js"></script>
+</body>
+</html>
