@@ -73,7 +73,7 @@ search_space = {
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 results = []
-n_iterations = 2 #40 
+n_iterations = 1 #40 
 
 
 

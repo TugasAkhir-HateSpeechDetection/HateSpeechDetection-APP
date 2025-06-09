@@ -276,11 +276,18 @@ document.getElementById("btnTune").addEventListener("click", () => {
         }
     };
 
-    eventSource.onerror = function() {
-        logElement.innerText += "\n❌ Terjadi kesalahan saat streaming data.";
-        eventSource.close();
-        spinner.style.display = "none";
-    };
+    eventSource.onerror = function(event) {
+    logElement.innerText += `\n Terjadi kesalahan saat streaming data.`;
+    if (event && event.target && event.target.readyState === EventSource.CLOSED) {
+        logElement.innerText += "\n Koneksi EventSource ditutup.";
+    } else {
+        logElement.innerText += `\n Detail Error: ${JSON.stringify(event)}`;
+    }
+
+    console.error("EventSource error:", event);
+    eventSource.close();
+    spinner.style.display = "none";
+};
 });
 
 //Train
