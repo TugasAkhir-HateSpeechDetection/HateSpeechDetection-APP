@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        let html = `<p class="mb-2">📄 Baris: ${shape.rows}, ${shape.columns}</p>`;
+        let html = `<p class="mb-2">📄 Shape Data: ${shape.rows}, ${shape.columns}</p>`;
         html += '<table class="table-auto w-full border border-gray-300"><thead><tr>';
 
         columns.forEach(col => {
@@ -150,8 +150,8 @@ document.getElementById('preprocessBtn').addEventListener('click', async () => {
         return html;
       };
 
-      originalDataDiv.innerHTML = `<p>📄 Baris: ${shape_original[0]}</p>` + buildTable(original);
-      preprocessedDataDiv.innerHTML = `<p>📄 Baris: ${shape_processed[0]}</p>` + buildTable(processed);
+      originalDataDiv.innerHTML = `<p>📄 Jumlah Baris: ${shape_original[0]}</p>` + buildTable(original);
+      preprocessedDataDiv.innerHTML = `<p>📄 Jumlah Baris: ${shape_processed[0]}</p>` + buildTable(processed);
     } else {
       originalDataDiv.innerText = `❌ ${result.error || 'Gagal memuat data'}`;
       preprocessedDataDiv.innerText = '';
@@ -167,9 +167,11 @@ document.getElementById('preprocessBtn').addEventListener('click', async () => {
 document.getElementById('tokenizeBtn').addEventListener('click', async () => {
   const output = document.getElementById('tokenResult');
   const preText = document.getElementById('preTokenText');
+  const tokenTitle = document.getElementById('tokenTitle'); // tambahkan ini
 
   output.innerHTML = '<p class="text-gray-500">Memproses...</p>';
   preText.textContent = 'Memuat...';
+  tokenTitle.textContent = 'Hasil Tokenisasi:'; // reset sementara
 
   try {
     const response = await fetch('/run_tokenization', { method: 'POST' });
@@ -181,10 +183,11 @@ document.getElementById('tokenizeBtn').addEventListener('click', async () => {
       return;
     }
 
-    const { text, tokens, token_ids, attention_mask, embedding_shape, embedding_preview } = data.token_data;
+    const { text, tokens, token_ids, embedding_shape, embedding_preview } = data.token_data;
+
     preText.textContent = text;
-    
-    // Buat tabel
+    tokenTitle.textContent = `Hasil Tokenisasi dengan embedding shape (${embedding_shape.join(', ')}):`;
+
     let tableHTML = `
       <table class="table-auto border-collapse w-full text-sm">
         <thead>
@@ -212,7 +215,6 @@ document.getElementById('tokenizeBtn').addEventListener('click', async () => {
     tableHTML += `
         </tbody>
       </table>
-      <p class="mt-4 text-gray-700"><strong>Embedding shape:</strong> (${embedding_shape.join(', ')})</p>
     `;
 
     output.innerHTML = tableHTML;
@@ -264,6 +266,16 @@ document.getElementById("btnTune").addEventListener("click", () => {
                             `;
                             tableBody.appendChild(tr);
                         });
+                        fetch('/get-best-params')
+                            .then(res => res.json())
+                            .then(data => {
+                              if (data && Object.keys(data).length > 0) {
+                                document.getElementById('epochCell').textContent = data.epochs;
+                                document.getElementById('unitsCell').textContent = data.units;
+                                document.getElementById('lrCell').textContent = data.learning_rate;
+                                document.getElementById('bsCell').textContent = data.batch_size;
+                              }
+                            });
                     })
                     .catch(err => {
                         logElement.innerText += "\n❌ Gagal memuat hasil tuning: " + err.message;
@@ -276,18 +288,11 @@ document.getElementById("btnTune").addEventListener("click", () => {
         }
     };
 
-    eventSource.onerror = function(event) {
-    logElement.innerText += `\n Terjadi kesalahan saat streaming data.`;
-    if (event && event.target && event.target.readyState === EventSource.CLOSED) {
-        logElement.innerText += "\n Koneksi EventSource ditutup.";
-    } else {
-        logElement.innerText += `\n Detail Error: ${JSON.stringify(event)}`;
-    }
-
-    console.error("EventSource error:", event);
-    eventSource.close();
-    spinner.style.display = "none";
-};
+    eventSource.onerror = function() {
+        logElement.innerText += "\n❌ Terjadi kesalahan saat streaming data.";
+        eventSource.close();
+        spinner.style.display = "none";
+    };
 });
 
 //Train
@@ -331,10 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(res => res.json())
         .then(data => {
           if (data && Object.keys(data).length > 0) {
-            document.getElementById('lrCell').textContent = data.learning_rate;
-            document.getElementById('bsCell').textContent = data.batch_size;
             document.getElementById('epochCell').textContent = data.epochs;
             document.getElementById('unitsCell').textContent = data.units;
+            document.getElementById('lrCell').textContent = data.learning_rate;
+            document.getElementById('bsCell').textContent = data.batch_size;
           }
         });
 
@@ -394,12 +399,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Warna latar dan teks
         if (r.prediction === 1) {
           div.classList.add('bg-red-100', 'text-red-800', 'font-semibold');
-        } else if (r.probability >= 0.4) {
-          div.classList.add('bg-yellow-100', 'text-yellow-800');
-        } else {
+        }else {
           div.classList.add('bg-green-100', 'text-green-800');
         }
-
 
         div.innerHTML = `
           <p><strong>${r.label}</strong></p>
@@ -452,6 +454,7 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
   `;
 
   const div = document.querySelector("#evaluate .mt-6");
+  div.innerHTML = "";
   div.innerHTML += `<div class="mt-4">${accuracy}${loss}</div>${table}`;
 });
 

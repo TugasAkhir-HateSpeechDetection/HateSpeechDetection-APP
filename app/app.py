@@ -4,6 +4,7 @@ import time
 import pandas as pd
 import subprocess
 import json
+import sys
 from utils.preprocess import run_preprocessing
 from utils.tokenization import tokenize_one
 from utils.testing import predict_tweet
@@ -145,12 +146,15 @@ def run_tokenization():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+import sys
+python_executable = sys.executable  
+
 @app.route('/start-tuning')
 def start_tuning():
     script_path = os.path.join(os.path.dirname(__file__), 'utils', 'tune.py')
     def generate():
         process = subprocess.Popen(
-            ['python', script_path],
+            [python_executable, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,
@@ -187,7 +191,7 @@ def train_model():
 
     def generate():
         process = subprocess.Popen(
-            ['python', script_path],
+            [python_executable, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,

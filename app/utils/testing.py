@@ -2,6 +2,7 @@ import re
 import torch
 import os
 import pandas as pd
+import json
 from torch import nn
 from transformers import BertTokenizer, BertModel
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
@@ -22,9 +23,19 @@ model_name = "cahya/bert-base-indonesian-522M"
 tokenizer = BertTokenizer.from_pretrained(model_name)
 bert_model = BertModel.from_pretrained(model_name)
 
+# Load best params
+try:
+    with open('./tuning_result/best_params.json') as f:
+        data = json.load(f)
+        best_item = max(data, key=lambda x: x['val_acc'])
+        best_params = best_item['params']
+except Exception as e:
+    print("Gagal membaca best_params.json:", e)
+    exit(1)
+
 #import dari class training, units->best params
 class BiGRUModel(nn.Module):
-    def __init__(self, units=30):
+    def __init__(self, units):
         super(BiGRUModel, self).__init__()
         self.gru = nn.GRU(input_size=768, hidden_size=units, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(units * 2, 9)
@@ -68,7 +79,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, '..', 'models', 'Bi-GRU.pt')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = BiGRUModel(units=30)
+model = BiGRUModel(best_params['units']).to(device)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model.to(device)
 model.eval()

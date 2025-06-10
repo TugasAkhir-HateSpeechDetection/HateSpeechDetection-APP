@@ -68,7 +68,7 @@
           
             <!-- Setelah tokenisasi -->
             <div class="mt-6">
-              <h3 class="text-lg font-semibold">Hasil Tokenisasi:</h3>
+              <h3 class="text-lg font-semibold" id="tokenTitle">Hasil Tokenisasi:</h3>
               <div id="tokenResult" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
                 <!-- Tabel akan dirender di sini -->
               </div>
@@ -79,7 +79,7 @@
 
           <div id="tune" class="content-section hidden">
             <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
-            <p>Mencari kombinasi terbaik dari learning rate, batch size, epoch, dll.</p>
+            <p>Mencari kombinasi optimal epoch, units, learning rate, dan batch size melalui Random Search (40 iterasi) dengan 5 fold cross-validation.</p>
             <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" id="btnTune">Mulai Tuning</button>
             <div id="tuningSpinner" style="display:none; margin-left: 10px;">
               ⏳ Tuning sedang berlangsung...
@@ -111,18 +111,18 @@
     <table class="min-w-full bg-white border border-gray-300 rounded">
       <thead>
         <tr class="bg-gray-100">
-          <th class="px-4 py-2 border">Learning Rate</th>
-          <th class="px-4 py-2 border">Batch Size</th>
           <th class="px-4 py-2 border">Epochs</th>
           <th class="px-4 py-2 border">Units</th>
+          <th class="px-4 py-2 border">Learning Rate</th>
+          <th class="px-4 py-2 border">Batch Size</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td id="lrCell" class="px-4 py-2 border text-center">-</td>
-          <td id="bsCell" class="px-4 py-2 border text-center">-</td>
           <td id="epochCell" class="px-4 py-2 border text-center">-</td>
           <td id="unitsCell" class="px-4 py-2 border text-center">-</td>
+          <td id="lrCell" class="px-4 py-2 border text-center">-</td>
+          <td id="bsCell" class="px-4 py-2 border text-center">-</td>
         </tr>
       </tbody>
     </table>

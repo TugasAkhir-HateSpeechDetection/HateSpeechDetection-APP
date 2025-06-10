@@ -30,38 +30,48 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class BiGRUModel(nn.Module):
     def __init__(self, units):
-        super().__init__()
-        self.gru = nn.GRU(768, units, batch_first=True, bidirectional=True)
+        super(BiGRUModel, self).__init__()
+        self.gru = nn.GRU(input_size=768, hidden_size=units, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(units * 2, 9)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         _, h = self.gru(x)
-        return self.sigmoid(self.fc(torch.cat((h[0], h[1]), dim=1)))
+        h_concat = torch.cat((h[0], h[1]), dim=1)
+        out = self.fc(h_concat)
+        return self.sigmoid(out)
 
-def train_model(model, optimizer, criterion, train_loader, val_loader, epochs, fold):
+def train_model(model, optimizer, criterion, train_loader, val_loader, epochs, device):
     model.to(device)
     for epoch in range(epochs):
         model.train()
-        total_loss = 0
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
-            loss = criterion(model(xb).squeeze(), yb.float())
+            preds = model(xb).squeeze()
+            loss = criterion(preds, yb.float())
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        print(f"[Fold {fold}] Epoch {epoch+1}/{epochs} - Loss: {total_loss / len(train_loader):.4f}", flush=True)
+    
+    # Evaluation
+    def evaluate(loader):
+        model.eval()
+        losses, accs = [], []
+        with torch.no_grad():
+            for xb, yb in loader:
+                xb, yb = xb.to(device), yb.to(device)
+                preds = model(xb).squeeze()
+                loss = criterion(preds, yb.float())
+                preds_binary = (preds > 0.5).float()
+                acc = (preds_binary == yb).float().mean().item()
+                losses.append(loss.item())
+                accs.append(acc)
+        return np.mean(losses), np.mean(accs)
 
-    model.eval()
-    accs = []
-    with torch.no_grad():
-        for xb, yb in val_loader:
-            preds = (model(xb.to(device)).squeeze() > 0.5).float()
-            accs.append((preds == yb.to(device)).float().mean().item())
-    acc = np.mean(accs)
-    print(f"[Fold {fold}] Validation Accuracy: {acc:.4f}", flush=True)
-    return acc
+    train_loss, train_acc = evaluate(train_loader)
+    val_loss, val_acc = evaluate(val_loader)
+    
+    return train_loss, train_acc, val_loss, val_acc
 
 # Hyperparameter space
 search_space = {
@@ -73,33 +83,64 @@ search_space = {
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 results = []
-n_iterations = 1 #40 
-
-
+n_iterations = 40 
 
 #Per fold-> train acc, train loss, val.acc, val.loss
 print("START_TUNING")
-for i in range(2):
-    params = {k: random.choice(v) for k, v in search_space.items()}
-    print(f"ITERATION {i+1}/2 PARAMS: {params}", flush=True)
-    val_accs = []
 
-    for fold, (train_idx, val_idx) in enumerate(kf.split(X_trainval_tensor), 1):
-        print(f"  >> Starting Fold {fold}/5...", flush=True)
-        train_loader = DataLoader(TensorDataset(X_trainval_tensor[train_idx], y_trainval_tensor[train_idx]), batch_size=params['batch_size'], shuffle=True)
-        val_loader = DataLoader(TensorDataset(X_trainval_tensor[val_idx], y_trainval_tensor[val_idx]), batch_size=params['batch_size'])
+for i in range(n_iterations):
+    params = {
+        'epochs': random.choice(search_space['epochs']),
+        'units': random.choice(search_space['units']),
+        'learning_rate': random.choice(search_space['learning_rate']),
+        'batch_size': random.choice(search_space['batch_size'])
+    }
+
+    fold_train_losses, fold_val_losses = [], []
+    fold_train_accs, fold_val_accs = [], []
+
+    print(f"\nIterasi {i+1}/{n_iterations} - Params: {params}", flush=True)
+
+    for fold, (train_index, val_index) in enumerate(kf.split(X_trainval_tensor), 1):
+        X_train_fold = X_trainval_tensor[train_index]
+        y_train_fold = y_trainval_tensor[train_index]
+        X_val_fold = X_trainval_tensor[val_index]
+        y_val_fold = y_trainval_tensor[val_index]
+
+        train_loader = DataLoader(TensorDataset(X_train_fold, y_train_fold), batch_size=params['batch_size'], shuffle=True)
+        val_loader = DataLoader(TensorDataset(X_val_fold, y_val_fold), batch_size=params['batch_size'])
 
         model = BiGRUModel(params['units'])
         optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
         criterion = nn.BCELoss()
 
-        acc = train_model(model, optimizer, criterion, train_loader, val_loader, params['epochs'], fold)
-        val_accs.append(acc)
-        print(f"  >> Fold {fold} completed with Accuracy: {acc:.4f}\n", flush=True)
+        train_loss, train_acc, val_loss, val_acc = train_model(
+            model, optimizer, criterion, train_loader, val_loader, params['epochs'], device)
 
-    avg_val_acc = np.mean(val_accs)
-    print(f"RESULT {i+1} VAL_ACC: {avg_val_acc:.4f}", flush=True)
-    results.append({'iteration': i+1, 'params': params, 'val_acc': avg_val_acc})
+        print(f"  Fold {fold} >> Train Acc: {train_acc:.4f} | Train Loss: {train_loss:.4f} | "
+              f"Val Acc: {val_acc:.4f} | Val Loss: {val_loss:.4f}", flush=True)
+
+        fold_train_losses.append(train_loss)
+        fold_train_accs.append(train_acc)
+        fold_val_losses.append(val_loss)
+        fold_val_accs.append(val_acc)
+
+    avg_train_loss = np.mean(fold_train_losses)
+    avg_train_acc = np.mean(fold_train_accs)
+    avg_val_loss = np.mean(fold_val_losses)
+    avg_val_acc = np.mean(fold_val_accs)
+
+    print(f"  >> Avg Train Acc: {avg_train_acc:.4f} | Avg Train Loss: {avg_train_loss:.4f} | "
+          f"Avg Val Acc: {avg_val_acc:.4f} | Avg Val Loss: {avg_val_loss:.4f}", flush=True)
+
+    results.append({
+        'iteration': i+1,
+        'params': params,
+        'train_acc': avg_train_acc,
+        'train_loss': avg_train_loss,
+        'val_acc': avg_val_acc,
+        'val_loss': avg_val_loss
+    })
 
 # Simpan hasil
 results_sorted = sorted(results, key=lambda x: x['val_acc'], reverse=True)[:5]

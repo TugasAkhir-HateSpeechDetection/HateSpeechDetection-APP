@@ -8,6 +8,7 @@ import torch.nn as nn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
+
 # Setup
 print("Menyiapkan data dan model...\n")
 
@@ -27,7 +28,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
-train_loader = None
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
 # Load best params
 try:
@@ -61,9 +63,11 @@ model = BiGRUModel(best_params['units']).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=best_params['learning_rate'])
 criterion = nn.BCELoss()
 
+model.to(device)
 for epoch in range(best_params['epochs']):
     model.train()
-    losses, accs = [], []
+    epoch_losses = []
+    epoch_accuracies = []
     for xb, yb in train_loader:
         xb, yb = xb.to(device), yb.to(device)
         optimizer.zero_grad()
@@ -71,10 +75,37 @@ for epoch in range(best_params['epochs']):
         loss = criterion(preds, yb.float())
         loss.backward()
         optimizer.step()
-        losses.append(loss.item())
-        accs.append((preds > 0.5).float().eq(yb).float().mean().item())
 
-    print(f"Epoch {epoch+1}/{best_params['epochs']} - Loss: {np.mean(losses):.4f} - Acc: {np.mean(accs):.4f}", flush=True)
+        epoch_losses.append(loss.item())
+        preds_binary = (preds > 0.5).float()
+        acc = (preds_binary == yb).float().mean().item()
+        epoch_accuracies.append(acc)
+
+    avg_loss = np.mean(epoch_losses)
+    avg_acc = np.mean(epoch_accuracies)
+    print(f"Epoch {epoch+1}/{best_params['epochs']} -  Accuracy: {avg_acc:.4f} | Loss: {avg_loss:.4f}", flush=True)
+
+# Evaluation
+print("\nMengevaluasi model yang sudah dilatih...\n")
+
+test_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=best_params['batch_size'])
+
+model.eval()
+test_losses = []
+test_accs = []
+with torch.no_grad():
+    for xb, yb in test_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        preds = model(xb).squeeze()
+        loss = criterion(preds, yb.float())
+        test_losses.append(loss.item())
+        preds_binary = (preds > 0.5).float()
+        acc = (preds_binary == yb).float().mean().item()
+        test_accs.append(acc)
+mean_test_loss = np.mean(test_losses)
+mean_test_acc = np.mean(test_accs)
+print(f"Test Accuracy: {mean_test_acc:.4f}")
+print(f"Test Loss: {mean_test_loss:.4f}")
 
 # Save model
 os.makedirs('./models', exist_ok=True)
