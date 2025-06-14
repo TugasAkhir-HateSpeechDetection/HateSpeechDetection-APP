@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   button.addEventListener('click', async () => {
     const tweet = textarea.value.trim();
-    resultsContainer.innerHTML = ''; // Kosongkan hasil sebelumnya
+    resultsContainer.innerHTML = '';
 
     if (!tweet) {
       resultsContainer.innerHTML = '<p class="text-red-600">Mohon masukkan tweet terlebih dahulu.</p>';
@@ -382,80 +382,138 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ tweet })
       });
 
-      if (!response.ok) {
-        throw new Error('Gagal mendapatkan response dari server');
-      }
-
       const results = await response.json();
-      if (results.error) {
-        resultsContainer.innerHTML = `<p class="text-red-600">${results.error}</p>`;
+
+      if (!response.ok || results.error) {
+        const msg = results.error || 'Terjadi kesalahan saat melakukan prediksi.';
+        resultsContainer.innerHTML = `<p class="text-red-600">${msg.includes('Model') ? 'Model belum ada, silakan latih model terlebih dahulu.' : msg}</p>`;
         return;
       }
 
       results.forEach(r => {
+        if (r.error) {
+          resultsContainer.innerHTML = `<p class="text-red-600">${r.error}</p>`;
+          return;
+        }
+
         const div = document.createElement('div');
         div.classList.add('px-4', 'py-2', 'rounded', 'shadow', 'mb-2', 'transition', 'duration-300');
 
-        // Warna latar dan teks
         if (r.prediction === 1) {
           div.classList.add('bg-red-100', 'text-red-800', 'font-semibold');
-        }else {
+        } else {
           div.classList.add('bg-green-100', 'text-green-800');
         }
 
         div.innerHTML = `
           <p><strong>${r.label}</strong></p>
-          <p>Probabilitas: <code>${r.probability.toFixed(6)}</code></p>
+          <p>Probabilitas: <code>${r.probability?.toFixed(6) ?? 'N/A'}</code></p>
           <p>Prediksi Biner: <strong>${r.prediction}</strong></p>
         `;
 
         resultsContainer.appendChild(div);
       });
-
     } catch (error) {
-      resultsContainer.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+      resultsContainer.innerHTML = `<p class="text-red-600">Model belum ada, silakan latih model terlebih dahulu.</p>
+      <br>
+      <p class="text-red-600">Error: ${error.message}</p>`;
     }
   });
 });
 
+//evaluation
 document.getElementById("runEvaluation").addEventListener("click", async () => {
-  const response = await fetch("/evaluate-model");
-  const data = await response.json();
-
-  const ul = document.createElement("ul");
-  ul.className = "mt-4";
-
-  const accuracy = `<li><strong>Accuracy:</strong> ${data.accuracy.toFixed(4)}</li>`;
-  const loss = `<li><strong>Loss:</strong> ${data.loss.toFixed(4)}</li>`;
-  const labels = Object.keys(data.report).filter(k => k !== 'accuracy' && k !== 'macro avg' && k !== 'weighted avg');
-
-  const rows = labels.map(label => {
-    const m = data.report[label];
-    return `<tr>
-      <td class="border px-2 py-1">${label}</td>
-      <td class="border px-2 py-1">${(m.precision).toFixed(4)}</td>
-      <td class="border px-2 py-1">${(m.recall).toFixed(4)}</td>
-      <td class="border px-2 py-1">${(m["f1-score"]).toFixed(4)}</td>
-    </tr>`;
-  }).join("");
-
-  const table = `
-    <table class="table-auto mt-4 w-full border border-collapse border-gray-300 text-sm">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="border px-2 py-1">Label</th>
-          <th class="border px-2 py-1">Precision</th>
-          <th class="border px-2 py-1">Recall</th>
-          <th class="border px-2 py-1">F1-Score</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-
+  const button = document.getElementById("runEvaluation");
   const div = document.querySelector("#evaluate .mt-6");
   div.innerHTML = "";
-  div.innerHTML += `<div class="mt-4">${accuracy}${loss}</div>${table}`;
+
+  let statusText = document.createElement("span");
+  statusText.id = "eval-status";
+  statusText.className = "ml-2 text-600";
+  statusText.innerText = "Sedang diproses...";
+  button.parentNode.insertBefore(statusText, button.nextSibling);
+
+  try {
+    const response = await fetch("/evaluate-model");
+    const data = await response.json();
+
+    if (!response.ok || data.status !== "success") {
+      const msg = data.message || "Terjadi kesalahan saat evaluasi.";
+      div.innerHTML = `<p class="text-red-600">${msg.includes("Model") ? "Model belum ada, silakan melatih model agar dapat dievaluasi." : msg}</p>`;
+      statusText.remove();
+      return;
+    }
+
+    // Tambahkan judul Confusion Matrix
+    const cmTitle = document.createElement("h3");
+    cmTitle.innerText = "Confusion Matrix";
+    cmTitle.className = "text-lg font-semibold text-center mt-4 mb-2";
+    div.appendChild(cmTitle);
+
+    // Tambahkan gambar Confusion Matrix
+    const img = document.createElement("img");
+    img.src = data.confusion_matrix;
+    img.alt = "Confusion Matrix";
+    img.className = "mx-auto mt-2 border rounded w-full max-w-4xl";
+    div.appendChild(img);
+
+    // Ambil mean accuracy & loss
+    const summaryResp = await fetch("/evaluation/classification_report.json");
+    const summaryData = await summaryResp.json();
+    const averageEntry = summaryData.find(item => item.label === "average");
+
+    const meanAccuracy = averageEntry?.mean_accuracy ?? "N/A";
+    const meanLoss = averageEntry?.mean_loss ?? "N/A";
+
+    // Tambahkan judul Classification Report
+    const reportTitle = document.createElement("h3");
+    reportTitle.innerText = "Classification Report";
+    reportTitle.className = "text-lg font-semibold mt-6";
+    div.appendChild(reportTitle);
+
+    // Tambahkan teks accuracy & loss
+    const metricP = document.createElement("p");
+    metricP.className = "text-sm text-gray-800 mt-2 mb-1";
+    metricP.innerHTML = `Test Accuracy: <strong>${meanAccuracy}</strong> &nbsp; | &nbsp; Test Loss: <strong>${meanLoss}</strong>`;
+    div.appendChild(metricP);
+
+    // Ambil classification report
+    const reportResp = await fetch(data.report);
+    const reportData = await reportResp.json();
+
+    // Bangun tabel classification report
+    let tableHtml = `
+      <table class="table-auto mt-4 w-full border border-collapse border-gray-300 text-sm">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="border px-2 py-1">Label</th>
+            <th class="border px-2 py-1">Accuracy</th>
+            <th class="border px-2 py-1">Recall</th>
+            <th class="border px-2 py-1">Precision</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${reportData.map(row => `
+            <tr>
+              <td class="border px-2 py-1">${row.label}</td>
+              <td class="border px-2 py-1">${parseFloat(row.accuracy).toFixed(4)}</td>
+              <td class="border px-2 py-1">${parseFloat(row.recall).toFixed(4)}</td>
+              <td class="border px-2 py-1">${parseFloat(row.precision).toFixed(4)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+
+    div.innerHTML += tableHtml;
+
+  } catch (err) {
+    div.innerHTML = `<p class="text-red-600">Model belum ada, silakan melatih model agar dapat dievaluasi.</p>`;
+    console.error(err);
+  }
+
+  const existingStatus = document.getElementById("eval-status");
+  if (existingStatus) existingStatus.remove();
 });
 
 

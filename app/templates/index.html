@@ -10,7 +10,7 @@
   <div class="flex h-screen">
     <!-- Sidebar -->
     <aside class="w-64 bg-white shadow-md p-4">
-      <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">HateSpeech Detection</h1>
+      <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">Bi-GRU HateSpeech Detection</h1>
       <nav class="space-y-2">
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('upload')">📂 Upload Dataset</button>
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('preprocess')">🧹 Preprocessing</button>
@@ -24,7 +24,7 @@
     <main class="flex-1 p-6 overflow-auto">
         <div id="upload" class="content-section">
             <h2 class="text-xl font-semibold mb-4">Upload Dataset</h2>
-            <p>Unggah file dataset (.csv) yang berisi tweet dan label multikategori.</p>
+            <p>Unggah file dataset (.csv) yang berisi tweet dan label untuk tugas klasifikasi multi-label.</p>
           
             <input type="file" id="datasetFile" accept=".csv" class="mt-4 block" />
             <button id="uploadBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload</button>
@@ -37,12 +37,15 @@
 
           <div id="preprocess" class="content-section hidden">
             <h2 class="text-xl font-semibold mb-4">Pra-pemrosesan Data</h2>
-            <button id="preprocessBtn" class="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">Lakukan Preprocessing</button>
+            <p>Proses pembersihan dataset dilakukan melalui sejumlah tahapan prapemrosesan.</p>
+            <!-- Tombol -->
+            <button id="preprocessBtn" class="mt-4 mb-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">Mulai Preprocessing</button>
+             <!-- Sebelum tokenisasi -->
             <div class="mt-4">
               <h3 class="text-lg font-semibold">Sebelum Preprocessing:</h3>
               <div id="originalData" class="mt-4"></div>
             </div>
-
+            <!-- Setelah tokenisasi -->
             <div class="mt-6">
               <h3 class="text-lg font-semibold">Setelah Preprocessing:</h3>
               <div id="preprocessedData" class="mt-4"></div>
@@ -53,9 +56,10 @@
           
 
           <div id="tokenize" class="content-section hidden">
-            <h2 class="text-xl font-semibold mb-4">Tokenisasi & Embedding</h2>
+            <h2 class="text-xl font-semibold mb-4">Tokenisasi</h2>
+            <p>Memproses data input dengan tokenisasi menggunakan model pra-latih BERT, yaitu <a href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">cahya/bert-base-indonesian-522M</a>.</p>
             <!-- Tombol -->
-            <button id="tokenizeBtn" class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Lakukan Tokenisasi & Embedding</button>
+            <button id="tokenizeBtn" class="mt-4 mb-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Mulai Tokenisasi</button>
           
             <!-- Sebelum tokenisasi -->
             <div class="mt-4">
@@ -63,9 +67,7 @@
                 <pre id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap">
                 </pre>
             </div>
-          
-
-          
+    
             <!-- Setelah tokenisasi -->
             <div class="mt-6">
               <h3 class="text-lg font-semibold" id="tokenTitle">Hasil Tokenisasi:</h3>
@@ -106,64 +108,73 @@
       
 
       <div id="train" class="content-section hidden">
-          <div class="mb-6">
-    <h2 class="text-lg font-semibold mb-2">Best Parameters</h2>
-    <table class="min-w-full bg-white border border-gray-300 rounded">
-      <thead>
-        <tr class="bg-gray-100">
-          <th class="px-4 py-2 border">Epochs</th>
-          <th class="px-4 py-2 border">Units</th>
-          <th class="px-4 py-2 border">Learning Rate</th>
-          <th class="px-4 py-2 border">Batch Size</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td id="epochCell" class="px-4 py-2 border text-center">-</td>
-          <td id="unitsCell" class="px-4 py-2 border text-center">-</td>
-          <td id="lrCell" class="px-4 py-2 border text-center">-</td>
-          <td id="bsCell" class="px-4 py-2 border text-center">-</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+          <h2 class="text-xl font-semibold mb-4">Training Model</h2>
+          <p class="mb-4">Melatih ulang model dengan menggunakan kombinasi hyperparameter terbaik yang diperoleh dari hasil Random Search.</p>
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold mb-2">Best Parameters</h2>
+          <table class="min-w-full bg-white border border-gray-300 rounded">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="px-4 py-2 border">Epochs</th>
+                <th class="px-4 py-2 border">Units</th>
+                <th class="px-4 py-2 border">Learning Rate</th>
+                <th class="px-4 py-2 border">Batch Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="epochCell" class="px-4 py-2 border text-center">-</td>
+                <td id="unitsCell" class="px-4 py-2 border text-center">-</td>
+                <td id="lrCell" class="px-4 py-2 border text-center">-</td>
+                <td id="bsCell" class="px-4 py-2 border text-center">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-  <!-- Spinner -->
-  <div id="spinner" class="hidden mt-4 text-center">
-    <span class="text-sm text-gray-500">Proses training sedang berjalan...</span>
-  </div>
+        <!-- Spinner -->
+        <div id="spinner" class="hidden mt-4 text-center">
+          <span class="text-sm text-gray-500">Proses training sedang berjalan...</span>
+        </div>
 
-  <!-- Train Button -->
-  <div class="my-4">
-    <button id="trainBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-      Mulai Training
-    </button>
-  </div>
+        <!-- Train Button -->
+        <div class="my-4">
+          <button id="trainBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Mulai Training
+          </button>
+        </div>
 
-  <!-- Log Area -->
-  <div>
-    <h2 class="text-lg font-semibold mb-2">Training Log</h2>
-    <pre id="logArea" class="bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
-  </div>
+        <!-- Log Area -->
+        <div>
+          <h2 class="text-lg font-semibold mb-2">Training Log</h2>
+          <pre id="logArea" class="bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
+        </div>
       </div>
       
       
 
-        <div id="evaluate" class="content-section hidden">
-          <h2 class="text-xl font-semibold mb-4">Evaluasi Model</h2>
-          <p>Menampilkan metrik seperti akurasi, precision, recall, F1.</p>
-          <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700" id="runEvaluation">Lihat Evaluasi</button>
-          <div class="mt-6">
-            <h3 class="text-lg font-semibold">Classification Report:</h3>
-            <!-- Tabel dan nilai evaluasi akan disisipkan JS di sini -->
-          </div>
+      <div id="evaluate" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Evaluasi Model</h2>
+        <p>Menampilkan metrik seperti akurasi, precision, recall, dan confusion matrix</p>
+
+        <div class="flex items-center space-x-2 mt-4">
+          <button id="runEvaluation" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+            Lihat Evaluasi
+          </button>
+
         </div>
+
+
+        <div class="mt-6" id="classificationReportContainer">
+
+        </div>
+      </div>
 
       
 
       <div id="test" class="content-section hidden">
         <h2 class="text-xl font-semibold mb-4">Testing Model</h2>
-        <p>Masukkan tweet untuk melihat prediksi label kebencian.</p>
+        <p>Masukkan teks untuk melihat prediksi label ujaran kebencian.</p>
         
         <textarea class="w-full mt-4 p-2 border rounded" placeholder="Contoh: 'Orang ini bodoh banget!'" id="tweet-input"></textarea>
         <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-teal-700">Cek Prediksi</button>

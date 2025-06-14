@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, send_from_directory, request, Response
 import os
 import time
 import pandas as pd
@@ -7,8 +7,8 @@ import json
 import sys
 from utils.preprocess import run_preprocessing
 from utils.tokenization import tokenize_one
-from utils.testing import predict_tweet
-from utils.evaluation import evaluate_model
+from utils.testing import predict_tweet, load_model
+from utils.evaluation import run_evaluation
 
 
 app = Flask(__name__)
@@ -201,10 +201,13 @@ def train_model():
         for line in process.stdout:
             yield f"data: {line.strip()}\n\n"
 
+        process.wait()
+        load_model()
     return Response(generate(), mimetype='text/event-stream')
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    load_model()
     data = request.json
     tweet_text = data.get('tweet', '')
     if not tweet_text:
@@ -213,11 +216,21 @@ def predict():
     results = predict_tweet(tweet_text)
     return jsonify(results)
 
-@app.route('/evaluate-model', methods=['GET'])
-def evaluate_model_route():
-    result = evaluate_model()
-    return jsonify(result)
+@app.route("/evaluate-model", methods=["GET"])
+def evaluate_model():
+    try:
+        run_evaluation()
+        return jsonify({
+            "status": "success",
+            "report": "/evaluation/classification_report.json",
+            "confusion_matrix": "/evaluation/confusion_matrix.png"
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/evaluation/<path:filename>")
+def evaluation_files(filename):
+    return send_from_directory("evaluation", filename)
 
 if __name__ == '__main__':
     app.run(debug=False,threaded=True)

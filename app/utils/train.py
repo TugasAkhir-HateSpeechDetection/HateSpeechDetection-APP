@@ -23,13 +23,11 @@ preprocessed_path = os.path.join(ROOT_DIR, 'app', 'preprocessed', 'preprocessed_
 X = np.load(embedding_path)
 y_df = pd.read_csv(preprocessed_path)
 y = y_df.drop(columns=['Tweet']).values
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, random_state=42)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
-X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
-y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
 # Load best params
 try:
@@ -85,30 +83,11 @@ for epoch in range(best_params['epochs']):
     avg_acc = np.mean(epoch_accuracies)
     print(f"Epoch {epoch+1}/{best_params['epochs']} -  Accuracy: {avg_acc:.4f} | Loss: {avg_loss:.4f}", flush=True)
 
-# Evaluation
-print("\nMengevaluasi model yang sudah dilatih...\n")
-
-test_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=best_params['batch_size'])
-
-model.eval()
-test_losses = []
-test_accs = []
-with torch.no_grad():
-    for xb, yb in test_loader:
-        xb, yb = xb.to(device), yb.to(device)
-        preds = model(xb).squeeze()
-        loss = criterion(preds, yb.float())
-        test_losses.append(loss.item())
-        preds_binary = (preds > 0.5).float()
-        acc = (preds_binary == yb).float().mean().item()
-        test_accs.append(acc)
-mean_test_loss = np.mean(test_losses)
-mean_test_acc = np.mean(test_accs)
-print(f"Test Accuracy: {mean_test_acc:.4f}")
-print(f"Test Loss: {mean_test_loss:.4f}")
-
 # Save model
 os.makedirs('./models', exist_ok=True)
 save_path = './models/Bi-GRU.pt'
-torch.save(model.state_dict(), save_path)
+torch.save({
+    'model_state_dict': model.state_dict(),
+    'units': best_params['units']
+}, save_path)
 print(f"\nTraining selesai. Model disimpan di {save_path}", flush=True)

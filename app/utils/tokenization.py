@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 from transformers import BertTokenizer, BertModel
+import random
 
 MODEL_NAME = 'cahya/bert-base-indonesian-522M'
 TOKENIZER = BertTokenizer.from_pretrained(MODEL_NAME)
@@ -24,7 +25,7 @@ def tokenize_one(preprocessed_path, embedding_output_path):
         model.to(device)
 
         # Tokenisasi 1 sample
-        sample_text = texts[0]
+        sample_text = random.choice(texts)
         encoded = tokenizer(sample_text, return_tensors='pt', padding='max_length', truncation=True, max_length=40)
         input_ids = encoded['input_ids'].to(device)
         attention_mask = encoded['attention_mask'].to(device)

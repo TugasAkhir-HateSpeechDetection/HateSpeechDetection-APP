@@ -83,7 +83,7 @@ search_space = {
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 results = []
-n_iterations = 40 
+n_iterations = 2
 
 #Per fold-> train acc, train loss, val.acc, val.loss
 print("START_TUNING")
