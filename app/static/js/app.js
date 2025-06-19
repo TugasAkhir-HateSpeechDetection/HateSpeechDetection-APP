@@ -1,14 +1,18 @@
 // Function navigasi onepage application
 function navigate(targetId) {
-    const sections = document.querySelectorAll(".content-section");
-    sections.forEach(section => {
-      if (section.id === targetId) {
-        section.classList.remove("hidden");
-      } else {
-        section.classList.add("hidden");
-      }
-    });
+  const sections = document.querySelectorAll(".content-section");
+  sections.forEach(section => {
+    if (section.id === targetId) {
+      section.classList.remove("hidden");
+    } else {
+      section.classList.add("hidden");
+    }
+  });
+
+  if (targetId === 'preprocess') {
+    loadOriginalSample(); 
   }
+}
 
 //Function Handle file upload
 async function handleFileUpload() {
@@ -57,7 +61,6 @@ async function handleFileUpload() {
   }
 }
 
-//Event listener
 document.addEventListener('DOMContentLoaded', () => {
   const uploadBtn = document.getElementById('uploadBtn');
   const showBtn = document.getElementById('showBtn');
@@ -116,11 +119,49 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 //Frontend Handling preprocess
+// Function build table
+function buildTable(data) {
+  if (!data.length) return '';
+
+  let html = '<table class="table-auto w-full border border-gray-300m">';
+  html += '<thead><tr>';
+  html += '<th class="border px-2 py-1 bg-gray-100">No.</th>';  // Tambahkan kolom No.
+  html += '<th class="border px-2 py-1 bg-gray-100">Tweet</th>';
+  html += '</tr></thead><tbody>';
+
+  data.forEach((row, index) => {
+    html += '<tr>';
+    html += `<td class="border px-2 py-1">${index + 1}</td>`;           // No. urut
+    html += `<td class="border px-2 py-1">${row['Tweet']}</td>`;       // Isi kolom Tweet
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+async function loadOriginalSample() {
+  const target = document.getElementById('originalData');
+  target.innerHTML = '⏳ Memuat data asli…';
+
+  try {
+    const res = await fetch('/show_dataset');
+    const json = await res.json();
+    if (res.ok) {
+      const { data, shape } = json;
+      target.innerHTML = `<p>📄 Jumlah Baris: ${shape.rows}</p>` + buildTable(data);
+    } else {
+      target.innerHTML = `❌ ${json.error || 'Gagal memuat data'}`;
+    }
+  } catch (err) {
+    console.error(err);
+    target.innerHTML = '❌ Terjadi kesalahan saat memuat data.';
+  }
+}
+
 document.getElementById('preprocessBtn').addEventListener('click', async () => {
-  const originalDataDiv = document.getElementById('originalData');
   const preprocessedDataDiv = document.getElementById('preprocessedData');
 
-  originalDataDiv.innerHTML = '⏳ Memuat data asli...';
   preprocessedDataDiv.innerHTML = '⏳ Memuat data hasil preprocessing...';
 
   try {
@@ -128,68 +169,92 @@ document.getElementById('preprocessBtn').addEventListener('click', async () => {
     const result = await response.json();
 
     if (response.ok) {
-      const { original, processed, shape_original, shape_processed } = result;
-
-      const buildTable = (data) => {
-        let html = '';
-        if (data.length > 0) {
-          html += '<table class="table-auto border border-gray-300 text-sm"><thead><tr>';
-          Object.keys(data[0]).forEach(key => {
-            html += `<th class="border px-2 py-1 bg-gray-100">${key}</th>`;
-          });
-          html += '</tr></thead><tbody>';
-          data.forEach(row => {
-            html += '<tr>';
-            Object.values(row).forEach(val => {
-              html += `<td class="border px-2 py-1">${val}</td>`;
-            });
-            html += '</tr>';
-          });
-          html += '</tbody></table>';
-        }
-        return html;
-      };
-
-      originalDataDiv.innerHTML = `<p>📄 Jumlah Baris: ${shape_original[0]}</p>` + buildTable(original);
+      const { processed, shape_processed } = result;
       preprocessedDataDiv.innerHTML = `<p>📄 Jumlah Baris: ${shape_processed[0]}</p>` + buildTable(processed);
     } else {
-      originalDataDiv.innerText = `❌ ${result.error || 'Gagal memuat data'}`;
-      preprocessedDataDiv.innerText = '';
+      preprocessedDataDiv.innerText = `❌ ${result.error || 'Gagal memuat data'}`;
     }
   } catch (error) {
     console.error(error);
-    originalDataDiv.innerText = '❌ Terjadi kesalahan saat memuat data.';
-    preprocessedDataDiv.innerText = '';
+    preprocessedDataDiv.innerText = '❌ Terjadi kesalahan saat memuat data.';
   }
 });
 
 //Frontend handling tokenization
-document.getElementById('tokenizeBtn').addEventListener('click', async () => {
-  const output = document.getElementById('tokenResult');
-  const preText = document.getElementById('preTokenText');
-  const tokenTitle = document.getElementById('tokenTitle'); // tambahkan ini
+document.getElementById('startTokenizeProgress').addEventListener('click', () => {
+  const eventSource = new EventSource('/start-tokenization');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressPercent');
+  const progressStatus = document.getElementById('progressStatus');
+  const container = document.getElementById('progressContainer');
 
-  output.innerHTML = '<p class="text-gray-500">Memproses...</p>';
-  preText.textContent = 'Memuat...';
-  tokenTitle.textContent = 'Hasil Tokenisasi:'; // reset sementara
+  container.classList.remove('hidden');
+  progressBar.style.width = '0%';
+  progressBar.className = 'h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out';
+  progressText.textContent = '0%';
+  progressStatus.textContent = 'Memulai tokenisasi...';
+
+  eventSource.onmessage = function(event) {
+    const data = event.data.trim();
+
+    const match = data.match(/Tokenizing:\s*(\d+)%/);
+    if (match) {
+      const percent = parseInt(match[1]);
+      progressBar.style.width = percent + '%';
+      progressText.textContent = percent + '%';
+      progressStatus.textContent = 'Memproses tweet...';
+    }
+
+    if (data.includes('DONE')) {
+      progressBar.style.width = '100%';
+      progressBar.classList.replace('bg-blue-600', 'bg-green-500');
+      progressText.textContent = '100%';
+      progressStatus.textContent = 'Tokenisasi selesai!';
+      eventSource.close();
+    }
+  };
+
+  eventSource.onerror = () => {
+    progressStatus.textContent = 'Terjadi kesalahan saat tokenisasi.';
+    progressBar.classList.replace('bg-blue-600', 'bg-red-500');
+    eventSource.close();
+  };
+});
+
+
+document.getElementById('showTokenSample').addEventListener('click', async () => {
+  const output     = document.getElementById('tokenResult');
+  const preText    = document.getElementById('preTokenText');
+  const tokenTitle = document.getElementById('tokenTitle');
+
+  // state awal
+  output.innerHTML      = 'Memuat...';
+  preText.textContent   = 'Loading...';
+  tokenTitle.textContent = 'Hasil Tokenisasi:';
+
+  // helper jika gagal
+  const handleError = (msg) => {
+    output.innerHTML    = `<p class="text-red-500">${msg}</p>`;
+    preText.textContent = '-';
+    tokenTitle.textContent = 'Hasil Tokenisasi:';
+  };
 
   try {
-    const response = await fetch('/run_tokenization', { method: 'POST' });
-    const data = await response.json();
+    const res  = await fetch('/tokenization-sample');
+    const data = await res.json();
 
     if (data.error) {
-      output.innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
-      preText.textContent = '-';
+      handleError(`Error: ${data.error}`);
       return;
     }
 
-    const { text, tokens, token_ids, embedding_shape, embedding_preview } = data.token_data;
+    const { text, tokens, token_ids, embedding_shape, embedding_preview } = data;
 
-    preText.textContent = text;
-    tokenTitle.textContent = `Hasil Tokenisasi dengan embedding shape (${embedding_shape.join(', ')}):`;
+    preText.textContent   = text;
+    tokenTitle.textContent = `Hasil Tokenisasi (embedding shape ${embedding_shape.join(', ')}):`;
 
     let tableHTML = `
-      <table class="table-auto border-collapse w-full text-sm">
+      <table class="table-auto w-full border border-gray-300">
         <thead>
           <tr class="bg-gray-200">
             <th class="border px-2 py-1">#</th>
@@ -201,30 +266,25 @@ document.getElementById('tokenizeBtn').addEventListener('click', async () => {
         <tbody>
     `;
 
-    for (let i = 0; i < tokens.length; i++) {
+    tokens.forEach((tok, i) => {
       tableHTML += `
         <tr>
           <td class="border px-2 py-1 text-center">${i + 1}</td>
-          <td class="border px-2 py-1">${tokens[i]}</td>
+          <td class="border px-2 py-1">${tok}</td>
           <td class="border px-2 py-1 text-center">${token_ids[i]}</td>
-          <td class="border px-2 py-1 text-xs">${embedding_preview[i] ? embedding_preview[i].map(n => n.toFixed(4)).join(', ') : '-'}</td>
-        </tr>
-      `;
-    }
+          <td class="border px-2 py-1 text-xs">${embedding_preview[i]?.map(n => n.toFixed(4)).join(', ') || '-'}</td>
+        </tr>`;
+    });
 
-    tableHTML += `
-        </tbody>
-      </table>
-    `;
-
+    tableHTML += '</tbody></table>';
     output.innerHTML = tableHTML;
 
   } catch (err) {
-    output.innerHTML = `<p class="text-red-500">Gagal memproses tokenisasi.</p>`;
-    preText.textContent = '-';
     console.error(err);
+    handleError('Gagal memuat hasil tokenisasi.');
   }
 });
+
 
 //Tuning
 document.getElementById("btnTune").addEventListener("click", () => {
@@ -295,37 +355,6 @@ document.getElementById("btnTune").addEventListener("click", () => {
     };
 });
 
-//Train
-// document.addEventListener('DOMContentLoaded', () => {
-//   const trainBtn = document.getElementById('trainBtn');
-//   const logArea = document.getElementById('logArea');
-
-//   // Load best parameters
-//   fetch('/get-best-params')
-//     .then(res => res.json())
-//     .then(data => {
-//       if (data && Object.keys(data).length > 0) {
-//         document.getElementById('lrCell').textContent = data.learning_rate;
-//         document.getElementById('bsCell').textContent = data.batch_size;
-//         document.getElementById('epochCell').textContent = data.epochs;
-//         document.getElementById('unitsCell').textContent = data.units;
-//       }
-//     });
-
-//   // Training
-//   trainBtn.addEventListener('click', () => {
-//     logArea.textContent = "Memulai training...\n";
-//     const eventSource = new EventSource('/train-model');
-//     eventSource.onmessage = function (e) {
-//       logArea.textContent += e.data + "\n";
-//       logArea.scrollTop = logArea.scrollHeight;
-//       if (e.data.includes("Training selesai")) {
-//         eventSource.close();
-//       }
-//     };
-//   });
-// });
-
 document.addEventListener('DOMContentLoaded', () => {
       const trainBtn = document.getElementById('trainBtn');
       const logArea = document.getElementById('logArea');
@@ -360,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-//testing
+//Front end handling testing
 document.addEventListener('DOMContentLoaded', () => {
   const button = document.querySelector('#test button');
   const textarea = document.querySelector('#test textarea');
@@ -421,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-//evaluation
+//frontend handling evaluation
 document.getElementById("runEvaluation").addEventListener("click", async () => {
   const button = document.getElementById("runEvaluation");
   const div = document.querySelector("#evaluate .mt-6");
@@ -483,7 +512,7 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
 
     // Bangun tabel classification report
     let tableHtml = `
-      <table class="table-auto mt-4 w-full border border-collapse border-gray-300 text-sm">
+      <table class="table-auto mt-4 w-full border border-collapse border-gray-300">
         <thead>
           <tr class="bg-gray-200">
             <th class="border px-2 py-1">Label</th>
@@ -506,6 +535,51 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
     `;
 
     div.innerHTML += tableHtml;
+    
+    // Ambil Euclidean data
+    const euclideanResp = await fetch("/get-euclidean");
+    const euclideanData = await euclideanResp.json();
+
+    // Tambahkan judul
+    const euclideanTitle = document.createElement("h3");
+    euclideanTitle.innerText = "Euclidean Distance Table";
+    euclideanTitle.className = "text-lg font-semibold mt-6";
+    div.appendChild(euclideanTitle);
+
+    // Hitung rata-rata
+    const meanDistance = euclideanData.reduce((sum, row) => sum + parseFloat(row.Euclidean_Distance), 0) / euclideanData.length;
+
+    const avgParagraph = document.createElement("p");
+    avgParagraph.className = "text-sm text-gray-800 mt-1";
+    avgParagraph.innerHTML = `Rata-rata Euclidean Distance: <strong>${meanDistance.toFixed(4)}</strong>`;
+    div.appendChild(avgParagraph);
+
+    // Buat tabel scrollable
+    const tableWrapper = document.createElement("div");
+    tableWrapper.className = "overflow-x-auto max-h-96 overflow-y-scroll border mt-2 rounded";
+
+    let euclideanTable = `
+      <table class="table-auto w-full border border-collapse border-gray-300">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border px-2 py-1">No.</th>
+            <th class="border px-2 py-1">Tweet</th>
+            <th class="border px-2 py-1">Euclidean Distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${euclideanData.map((row, index) => `
+            <tr>
+              <td class="border px-2 py-1 text-center">${index + 1}</td>
+              <td class="border px-2 py-1">${row.Tweet}</td>
+              <td class="border px-2 py-1 text-center">${parseFloat(row.Euclidean_Distance).toFixed(4)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    tableWrapper.innerHTML = euclideanTable;
+    div.appendChild(tableWrapper);
 
   } catch (err) {
     div.innerHTML = `<p class="text-red-600">Model belum ada, silakan melatih model agar dapat dievaluasi.</p>`;

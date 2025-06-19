@@ -27,6 +27,7 @@ app.config['EMBEDDED_FOLDER'] = EMBEDDED_FOLDER
 
 #Global Variable
 uploaded_filename = ""
+python_executable = sys.executable 
 
 @app.route('/')
 def index():
@@ -116,38 +117,39 @@ def preprocess_dataset():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-@app.route('/run_tokenization', methods=['POST'])
-def run_tokenization():
+@app.route('/start-tokenization')
+def start_tokenization():
+    preprocessed_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
+    embedded_path = os.path.join(EMBEDDED_FOLDER, 'bert_embedding.npy')
+    script_path = os.path.join('utils', 'tokenize_batch.py')
+
+    def generate():
+        process = subprocess.Popen(
+            [python_executable, script_path, preprocessed_path, embedded_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+
+        for line in process.stdout:
+            yield f"data: {line.strip()}\n\n"
+
+        process.wait()
+
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/tokenization-sample')
+def tokenization_sample():
     try:
         preprocessed_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
-        raw_path = os.path.join('raw_data', 'raw_data.csv')
         embedded_path = os.path.join(EMBEDDED_FOLDER, 'bert_embedding.npy')
 
-        # Ambil data sebelum tokenisasi
-        if os.path.exists(raw_path):
-            df_raw = pd.read_csv(raw_path)
-            pre_sample = df_raw[['Tweet']].head(5).reset_index()
-            pre_sample.rename(columns={'index': 'No'}, inplace=True)
-            pre_sample['No'] += 1
-            pre_data = pre_sample.to_dict(orient='records')
-        else:
-            pre_data = []
-
-        if not os.path.exists(preprocessed_path):
-            return jsonify({'error': 'Preprocessed file not found'}), 404
-
         result = tokenize_one(preprocessed_path, embedded_path)
-
-        if 'error' in result:
-            return jsonify({'error': result['error']}), 500
-
-        return jsonify({'pre_data': pre_data, 'token_data': result})
-
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
     
-import sys
-python_executable = sys.executable  
 
 @app.route('/start-tuning')
 def start_tuning():
@@ -195,7 +197,7 @@ def train_model():
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,
-            text=True  # penting agar tidak binary
+            text=True
         )
 
         for line in process.stdout:
@@ -231,6 +233,7 @@ def evaluate_model():
 @app.route("/evaluation/<path:filename>")
 def evaluation_files(filename):
     return send_from_directory("evaluation", filename)
+
 
 if __name__ == '__main__':
     app.run(debug=False,threaded=True)

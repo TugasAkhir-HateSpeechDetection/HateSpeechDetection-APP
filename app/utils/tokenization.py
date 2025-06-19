@@ -13,7 +13,11 @@ MODEL.eval()
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 MODEL.to(DEVICE)
 
-def tokenize_one(preprocessed_path, embedding_output_path):
+def tokenize_one(preprocessed_path,embedding_path):
+    
+    if not os.path.exists(embedding_path):
+        return {"error": "Embedding file belum ada. Jalankan proses tokenisasi penuh terlebih dahulu."}
+    
     try:
         df = pd.read_csv(preprocessed_path, encoding='utf-8')
         texts = df['Tweet'].astype(str).tolist()
@@ -37,25 +41,6 @@ def tokenize_one(preprocessed_path, embedding_output_path):
         tokens = tokenizer.convert_ids_to_tokens(encoded['input_ids'][0])
         token_ids = input_ids[0].cpu().numpy().tolist()
         attention = attention_mask[0].cpu().numpy().tolist()
-
-        # Simpan seluruh embedding jika belum
-        if not os.path.exists(embedding_output_path):
-            batch_size = 32
-            all_embeddings = []
-            for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
-                batch_texts = texts[i:i + batch_size]
-                batch_encoded = tokenizer(batch_texts, return_tensors='pt', padding='max_length',
-                                          truncation=True, max_length=40)
-                ids = batch_encoded['input_ids'].to(device)
-                masks = batch_encoded['attention_mask'].to(device)
-
-                with torch.no_grad():
-                    batch_out = model(input_ids=ids, attention_mask=masks)
-                    all_embeddings.append(batch_out.last_hidden_state.cpu().numpy())
-
-            final_embeddings = np.concatenate(all_embeddings, axis=0)
-            os.makedirs(os.path.dirname(embedding_output_path), exist_ok=True)
-            np.save(embedding_output_path, final_embeddings)
 
         return {
             "text": sample_text,

@@ -58,17 +58,32 @@
           <div id="tokenize" class="content-section hidden">
             <h2 class="text-xl font-semibold mb-4">Tokenisasi</h2>
             <p>Memproses data input dengan tokenisasi menggunakan model pra-latih BERT, yaitu <a href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">cahya/bert-base-indonesian-522M</a>.</p>
-            <!-- Tombol -->
-            <button id="tokenizeBtn" class="mt-4 mb-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Mulai Tokenisasi</button>
-          
-            <!-- Sebelum tokenisasi -->
-            <div class="mt-4">
-              <h3 class="text-lg font-semibold">Teks Bersih:</h3>
-                <pre id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap">
-                </pre>
+
+            <div class="mt-4 space-x-2">
+              <button id="startTokenizeProgress" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Mulai Tokenisasi
+              </button>
+              <button id="showTokenSample" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                Tampilkan Sampel
+              </button>
             </div>
-    
-            <!-- Setelah tokenisasi -->
+
+            <div id="progressContainer" class="w-full mt-6 mb-6 hidden">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium text-blue-700">Tokenizing Progress</span>
+                <span id="progressPercent" class="text-sm font-medium text-blue-700">0%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700">
+                <div id="progressBar" class="h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+              </div>
+              <p id="progressStatus" class="text-sm text-gray-600 mt-1 italic"></p>
+            </div>
+
+            <div class="mt-4">
+              <h3 class="text-lg font-semibold">Teks Asli:</h3>
+              <div id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap"></div>
+            </div>
+
             <div class="mt-6">
               <h3 class="text-lg font-semibold" id="tokenTitle">Hasil Tokenisasi:</h3>
               <div id="tokenResult" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
