@@ -187,6 +187,7 @@ document.getElementById('startTokenizeProgress').addEventListener('click', () =>
   const progressText = document.getElementById('progressPercent');
   const progressStatus = document.getElementById('progressStatus');
   const container = document.getElementById('progressContainer');
+  const barTitle = document.getElementById('barTitle')
 
   container.classList.remove('hidden');
   progressBar.style.width = '0%';
@@ -196,6 +197,16 @@ document.getElementById('startTokenizeProgress').addEventListener('click', () =>
 
   eventSource.onmessage = function(event) {
     const data = event.data.trim();
+    if (data === 'ALREADY_EXISTS') {
+      progressBar.style.width = '100%';
+      progressBar.classList.replace('bg-blue-600', 'bg-green-500');
+      progressText.textContent = '100%';
+      progressStatus.textContent = 'Embedding sudah ada. Tidak perlu melakukan tokenisasi.';
+      barTitle.classList.replace('text-blue-700', 'text-green-600');
+      progressText.classList.replace('text-blue-700', 'text-green-600');
+      eventSource.close();
+      return;
+    }
 
     const match = data.match(/Tokenizing:\s*(\d+)%/);
     if (match) {
@@ -210,6 +221,8 @@ document.getElementById('startTokenizeProgress').addEventListener('click', () =>
       progressBar.classList.replace('bg-blue-600', 'bg-green-500');
       progressText.textContent = '100%';
       progressStatus.textContent = 'Tokenisasi selesai!';
+      barTitle.classList.replace('text-blue-700', 'text-green-600');
+      progressText.classList.replace('text-blue-700', 'text-green-600'); 
       eventSource.close();
     }
   };
@@ -536,49 +549,51 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
 
     div.innerHTML += tableHtml;
     
-    // Ambil Euclidean data
-    const euclideanResp = await fetch("/get-euclidean");
-    const euclideanData = await euclideanResp.json();
+    // Ambil Hamming Loss data
+    const hammingResp = await fetch("/get-hamming-loss");
+    const hammingData = await hammingResp.json();
 
     // Tambahkan judul
-    const euclideanTitle = document.createElement("h3");
-    euclideanTitle.innerText = "Euclidean Distance Table";
-    euclideanTitle.className = "text-lg font-semibold mt-6";
-    div.appendChild(euclideanTitle);
+    const hammingTitle = document.createElement("h3");
+    hammingTitle.innerText = "Hamming Loss Table";
+    hammingTitle.className = "text-lg font-semibold mt-6";
+    div.appendChild(hammingTitle);
 
-    // Hitung rata-rata
-    const meanDistance = euclideanData.reduce((sum, row) => sum + parseFloat(row.Euclidean_Distance), 0) / euclideanData.length;
+    // Hitung similarity score (berdasarkan Hamming Loss)
+    const meanHamming = hammingData.reduce((sum, row) => sum + parseFloat(row.Hamming_Loss), 0) / hammingData.length;
+    const similarityScore = 1 - meanHamming;
+    const similarityPercent = (similarityScore * 100).toFixed(2);
 
-    const avgParagraph = document.createElement("p");
-    avgParagraph.className = "text-sm text-gray-800 mt-1";
-    avgParagraph.innerHTML = `Rata-rata Euclidean Distance: <strong>${meanDistance.toFixed(4)}</strong>`;
-    div.appendChild(avgParagraph);
+    const scoreParagraph = document.createElement("p");
+    scoreParagraph.className = "text-sm text-gray-800 mt-2 mb-1";
+    scoreParagraph.innerHTML = `Similarity Score: <strong>${similarityPercent}%</strong> &nbsp; | &nbsp; Mean Hamming Loss : <strong>${meanHamming.toFixed(4)}</strong>`;
+    div.appendChild(scoreParagraph);
 
     // Buat tabel scrollable
     const tableWrapper = document.createElement("div");
     tableWrapper.className = "overflow-x-auto max-h-96 overflow-y-scroll border mt-2 rounded";
 
-    let euclideanTable = `
+    let hammingTable = `
       <table class="table-auto w-full border border-collapse border-gray-300">
         <thead class="bg-gray-200">
           <tr>
             <th class="border px-2 py-1">No.</th>
             <th class="border px-2 py-1">Tweet</th>
-            <th class="border px-2 py-1">Euclidean Distance</th>
+            <th class="border px-2 py-1">Hamming Loss</th>
           </tr>
         </thead>
         <tbody>
-          ${euclideanData.map((row, index) => `
+          ${hammingData.map((row, index) => `
             <tr>
               <td class="border px-2 py-1 text-center">${index + 1}</td>
               <td class="border px-2 py-1">${row.Tweet}</td>
-              <td class="border px-2 py-1 text-center">${parseFloat(row.Euclidean_Distance).toFixed(4)}</td>
+              <td class="border px-2 py-1 text-center">${parseFloat(row.Hamming_Loss).toFixed(4)}</td>
             </tr>
           `).join("")}
         </tbody>
       </table>
     `;
-    tableWrapper.innerHTML = euclideanTable;
+    tableWrapper.innerHTML = hammingTable;
     div.appendChild(tableWrapper);
 
   } catch (err) {

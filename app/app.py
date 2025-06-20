@@ -131,10 +131,12 @@ def start_tokenization():
             text=True
         )
 
-        for line in process.stdout:
-            yield f"data: {line.strip()}\n\n"
-
-        process.wait()
+        for line in iter(process.stdout.readline, ''):
+            if line.strip() == 'ALREADY_EXISTS':
+                yield 'data: ALREADY_EXISTS\n\n'
+                break
+            yield f'data: {line}\n\n'
+        process.stdout.close()
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -220,6 +222,7 @@ def predict():
 
 @app.route("/evaluate-model", methods=["GET"])
 def evaluate_model():
+    load_model()
     try:
         run_evaluation()
         return jsonify({
@@ -234,6 +237,14 @@ def evaluate_model():
 def evaluation_files(filename):
     return send_from_directory("evaluation", filename)
 
-
+@app.route("/get-hamming-loss")
+def get_hamming_loss():
+    try:
+        with open('./evaluation/hamming_loss.json') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=False,threaded=True)

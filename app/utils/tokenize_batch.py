@@ -13,6 +13,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 def tokenize_batch(preprocessed_path, output_path):
+    if os.path.exists(output_path):
+        print("ALREADY_EXISTS")
+        return
+    
     df = pd.read_csv(preprocessed_path)
     texts = df['Tweet'].astype(str).tolist()
     batch_size = 32

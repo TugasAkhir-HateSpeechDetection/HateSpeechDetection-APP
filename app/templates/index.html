@@ -57,7 +57,7 @@
 
           <div id="tokenize" class="content-section hidden">
             <h2 class="text-xl font-semibold mb-4">Tokenisasi</h2>
-            <p>Memproses data input dengan tokenisasi menggunakan model pra-latih BERT, yaitu <a href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">cahya/bert-base-indonesian-522M</a>.</p>
+            <p>Memproses data input dengan tokenisasi menggunakan model pra-latih BERT, yaitu <a class="text-blue-600 hover:underline" href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">cahya/bert-base-indonesian-522M</a>.</p>
 
             <div class="mt-4 space-x-2">
               <button id="startTokenizeProgress" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
@@ -70,7 +70,7 @@
 
             <div id="progressContainer" class="w-full mt-6 mb-6 hidden">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-sm font-medium text-blue-700">Tokenizing Progress</span>
+                <span class="text-sm font-medium text-blue-700" id="barTitle">Tokenizing Progress</span>
                 <span id="progressPercent" class="text-sm font-medium text-blue-700">0%</span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700">
