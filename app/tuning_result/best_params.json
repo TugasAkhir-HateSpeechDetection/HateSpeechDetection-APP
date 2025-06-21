@@ -1,0 +1,28 @@
+[
+    {
+        "iteration": 1,
+        "params": {
+            "epochs": 30,
+            "units": 30,
+            "learning_rate": 0.5,
+            "batch_size": 256
+        },
+        "train_acc": 0.8153107892383229,
+        "train_loss": 1.5588891072706743,
+        "val_acc": 0.8142244696617127,
+        "val_loss": 1.5721011976401011
+    },
+    {
+        "iteration": 2,
+        "params": {
+            "epochs": 40,
+            "units": 50,
+            "learning_rate": 0.5,
+            "batch_size": 192
+        },
+        "train_acc": 0.721038726514036,
+        "train_loss": 21.905683612823488,
+        "val_acc": 0.7194237004626881,
+        "val_loss": 21.949806161360307
+    }
+]

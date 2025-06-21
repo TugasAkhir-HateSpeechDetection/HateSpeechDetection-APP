@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, send_from_directory, request, Response
+from flask import Flask, render_template, jsonify, send_from_directory, request, Response, send_file
 import os
 import time
 import pandas as pd
@@ -202,12 +202,20 @@ def train_model():
             text=True
         )
 
-        for line in process.stdout:
+        for line in iter(process.stdout.readline, ''):
             yield f"data: {line.strip()}\n\n"
-
+        process.stdout.close()
         process.wait()
         load_model()
     return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/get-training-plot')
+def get_training_plot():
+    plot_path = os.path.join('app', 'evaluation', 'training_plot.png')
+    if os.path.exists(plot_path):
+        return send_file(plot_path, mimetype='image/png')
+    else:
+        return jsonify({'error': 'File tidak ditemukan'}), 404
 
 @app.route('/predict', methods=['POST'])
 def predict():

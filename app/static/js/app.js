@@ -395,9 +395,26 @@ document.addEventListener('DOMContentLoaded', () => {
           logArea.textContent += e.data + "\n";
           logArea.scrollTop = logArea.scrollHeight;
           if (e.data.includes("Training selesai")) {
-            spinner.classList.add('hidden');
-            eventSource.close();
-          }
+          spinner.classList.add('hidden');
+          eventSource.close();
+
+          const img = document.getElementById('trainingPlot');
+          const plotContainer = document.getElementById('trainingPlotContainer');
+
+          // Buat URL dengan cache buster
+          const plotURL = '/evaluation/training_plot.png?' + Date.now();
+
+          // Coba load gambar
+          const testImg = new Image();
+          testImg.onload = () => {
+            img.src = plotURL;
+            plotContainer.classList.remove('hidden');
+          };
+          testImg.onerror = () => {
+            console.error("Gagal memuat gambar training_plot.png");
+          };
+          testImg.src = plotURL;
+        }
         };
       });
     });
