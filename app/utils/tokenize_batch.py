@@ -24,7 +24,7 @@ def tokenize_batch(preprocessed_path, output_path):
 
     for i in tqdm(range(0, len(texts), batch_size), desc="Tokenizing", ncols=100):
         batch_texts = texts[i:i+batch_size]
-        batch = tokenizer(batch_texts, return_tensors='pt', padding='max_length', truncation=True, max_length=40)
+        batch = tokenizer(batch_texts, return_tensors='pt', padding='max_length', truncation=True, max_length=50)
         ids = batch['input_ids'].to(device)
         masks = batch['attention_mask'].to(device)
 

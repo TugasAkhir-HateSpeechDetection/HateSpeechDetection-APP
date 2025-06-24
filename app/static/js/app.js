@@ -316,7 +316,7 @@ document.getElementById("btnTune").addEventListener("click", () => {
     eventSource.onmessage = function(event) {
         const line = event.data;
 
-        logElement.innerText += line + "\n";
+        logElement.textContent += line + "\n";
         logElement.scrollTop = logElement.scrollHeight;
 
         if (line.includes("DONE")) {
@@ -327,17 +327,17 @@ document.getElementById("btnTune").addEventListener("click", () => {
                     .then(response => response.json())
                     .then(data => {
                         tableBody.innerHTML = "";
-                        data.forEach(row => {
-                            const tr = document.createElement("tr");
-                            tr.innerHTML = `
-                              <td class="px-4 py-2 text-center align-middle">${row.iteration}</td>
-                              <td class="px-4 py-2 text-center align-middle">${row.params.epochs}</td>
-                              <td class="px-4 py-2 text-center align-middle">${row.params.units}</td>
-                              <td class="px-4 py-2 text-center align-middle">${row.params.learning_rate}</td>
-                              <td class="px-4 py-2 text-center align-middle">${row.params.batch_size}</td>
-                              <td class="px-4 py-2 text-center align-middle">${row.val_acc.toFixed(4)}</td>
-                            `;
-                            tableBody.appendChild(tr);
+                        data.slice(0, 5).forEach(row => {
+                          const tr = document.createElement("tr");
+                          tr.innerHTML = `
+                            <td class="px-4 py-2 text-center align-middle">${row.iteration}</td>
+                            <td class="px-4 py-2 text-center align-middle">${row.params.epochs}</td>
+                            <td class="px-4 py-2 text-center align-middle">${row.params.units}</td>
+                            <td class="px-4 py-2 text-center align-middle">${row.params.learning_rate}</td>
+                            <td class="px-4 py-2 text-center align-middle">${row.params.batch_size}</td>
+                            <td class="px-4 py-2 text-center align-middle">${row.val_acc.toFixed(4)}</td>
+                          `;
+                          tableBody.appendChild(tr);
                         });
                         fetch('/get-best-params')
                             .then(res => res.json())
@@ -369,55 +369,65 @@ document.getElementById("btnTune").addEventListener("click", () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-      const trainBtn = document.getElementById('trainBtn');
-      const logArea = document.getElementById('logArea');
-      const spinner = document.getElementById('spinner');
+  const trainBtn      = document.getElementById('trainBtn');
+  const logArea       = document.getElementById('logArea');
+  const spinner       = document.getElementById('spinner');
+  const showPlotBtn   = document.getElementById('showPlotBtn');
+  const showPlotWrap  = document.getElementById('showPlotWrapper');
+  const plotContainer = document.getElementById('trainingPlotContainer');
+  const plotImg       = document.getElementById('trainingPlot');
 
-      // Load best parameters
-      fetch('/get-best-params')
-        .then(res => res.json())
-        .then(data => {
-          if (data && Object.keys(data).length > 0) {
-            document.getElementById('epochCell').textContent = data.epochs;
-            document.getElementById('unitsCell').textContent = data.units;
-            document.getElementById('lrCell').textContent = data.learning_rate;
-            document.getElementById('bsCell').textContent = data.batch_size;
-          }
-        });
-
-      // Handle training button
-      trainBtn.addEventListener('click', () => {
-        logArea.textContent = "Memulai training...\n";
-        spinner.classList.remove('hidden');
-
-        const eventSource = new EventSource('/train-model');
-        eventSource.onmessage = function (e) {
-          logArea.textContent += e.data + "\n";
-          logArea.scrollTop = logArea.scrollHeight;
-          if (e.data.includes("Training selesai")) {
-          spinner.classList.add('hidden');
-          eventSource.close();
-
-          const img = document.getElementById('trainingPlot');
-          const plotContainer = document.getElementById('trainingPlotContainer');
-
-          // Buat URL dengan cache buster
-          const plotURL = '/evaluation/training_plot.png?' + Date.now();
-
-          // Coba load gambar
-          const testImg = new Image();
-          testImg.onload = () => {
-            img.src = plotURL;
-            plotContainer.classList.remove('hidden');
-          };
-          testImg.onerror = () => {
-            console.error("Gagal memuat gambar training_plot.png");
-          };
-          testImg.src = plotURL;
-        }
-        };
-      });
+  /* --- tampilkan best params (tidak berubah) --- */
+  fetch('/get-best-params')
+    .then(r => r.json())
+    .then(d => {
+      if (d && Object.keys(d).length) {
+        epochCell.textContent = d.epochs;
+        unitsCell.textContent = d.units;
+        lrCell.textContent    = d.learning_rate;
+        bsCell.textContent    = d.batch_size;
+      }
     });
+
+  /* -------- MULAI TRAINING -------- */
+  trainBtn.addEventListener('click', () => {
+    logArea.textContent = 'Memulai training...\n';
+    spinner.classList.remove('hidden');
+    showPlotWrap.classList.add('hidden');
+    plotContainer.classList.add('hidden');
+
+    const es = new EventSource('/train-model');
+    es.onmessage = (e) => {
+      logArea.textContent += e.data + '\n';
+      logArea.scrollTop = logArea.scrollHeight;
+
+      /* training selesai? */
+      if (e.data.includes('Training selesai')) {
+        spinner.classList.add('hidden');
+        es.close();
+
+        /* tampilkan tombol lihat plot */
+        showPlotWrap.classList.remove('hidden');
+      }
+    };
+  });
+
+  /* -------- TOMBOL LIHAT PLOT -------- */
+  showPlotBtn.addEventListener('click', () => {
+    // tambahkan cache-buster agar tidak pakai gambar lama
+    const url = '/evaluation/training_plot.png?' + Date.now();
+
+    // coba load; tampilkan container hanya jika sukses
+    const tmp = new Image();
+    tmp.onload = () => {
+      plotImg.src = url;
+      plotContainer.classList.remove('hidden');
+    };
+    tmp.onerror = () =>
+      alert('Gagal memuat training_plot.png – pastikan training selesai tanpa error.');
+    tmp.src = url;
+  });
+});
 
 //Front end handling testing
 document.addEventListener('DOMContentLoaded', () => {

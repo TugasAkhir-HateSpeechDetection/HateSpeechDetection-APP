@@ -12,7 +12,6 @@ KAMUS_PATH = os.path.join(ROOT_DIR, 'app', 'kamus', 'new_kamusalay.csv')
 # MODEL_PATH = os.path.join(ROOT_DIR, 'models', 'Bi-GRU.pt')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, '..', 'models', 'Bi-GRU.pt')
-PARAMS_PATH = os.path.join(ROOT_DIR, 'tuning_result', 'best_params.json')
 MODEL_NAME = "cahya/bert-base-indonesian-522M"
 LABELS = [
     "HS", "Abusive", "HS_Individual", "HS_Group", "HS_Religion",

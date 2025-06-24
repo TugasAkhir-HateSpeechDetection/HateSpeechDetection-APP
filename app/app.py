@@ -184,7 +184,7 @@ def get_best_params():
     try:
         with open('./tuning_result/best_params.json') as f:
             data = json.load(f)
-            best = max(data, key=lambda x: x['val_acc'])
+            best = min(data, key=lambda x: x['val_loss'])
             return jsonify(best['params'])
     except Exception as e:
         return jsonify({})

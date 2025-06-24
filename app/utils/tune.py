@@ -8,10 +8,32 @@ import pandas as pd
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split, KFold
 
-# Load data
-# X = np.load('./#SKRIPSI/mini_preprocessed_data_bert_embedding.npy')
-# y_df = pd.read_csv('./#SKRIPSI/mini_preprocessed_data.csv')
-# y = y_df.drop(columns=['Tweet']).values
+USE_SEED = True
+SEED = 42
+
+if USE_SEED:
+    def set_seed(seed=SEED):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    set_seed(SEED)
+
+    def seed_worker(worker_id):
+        worker_seed = SEED + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    g = torch.Generator()
+    g.manual_seed(SEED)
+else:
+    seed_worker = None
+    g = None
+
+set_seed(SEED)
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -83,7 +105,7 @@ search_space = {
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 results = []
-n_iterations = 2
+n_iterations = 40
 
 #Per fold-> train acc, train loss, val.acc, val.loss
 print("START_TUNING")
@@ -107,8 +129,20 @@ for i in range(n_iterations):
         X_val_fold = X_trainval_tensor[val_index]
         y_val_fold = y_trainval_tensor[val_index]
 
-        train_loader = DataLoader(TensorDataset(X_train_fold, y_train_fold), batch_size=params['batch_size'], shuffle=True)
-        val_loader = DataLoader(TensorDataset(X_val_fold, y_val_fold), batch_size=params['batch_size'])
+        train_loader = DataLoader(
+            TensorDataset(X_train_fold, y_train_fold),
+            batch_size=params['batch_size'],
+            shuffle=True,
+            worker_init_fn=seed_worker if USE_SEED else None,
+            generator=g if USE_SEED else None
+        )
+        val_loader = DataLoader(
+            TensorDataset(X_val_fold, y_val_fold),
+            batch_size=params['batch_size'],
+            shuffle=False,  
+            worker_init_fn=seed_worker if USE_SEED else None,
+            generator=g if USE_SEED else None
+        )
 
         model = BiGRUModel(params['units'])
         optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
@@ -143,7 +177,7 @@ for i in range(n_iterations):
     })
 
 # Simpan hasil
-results_sorted = sorted(results, key=lambda x: x['val_acc'], reverse=True)[:5]
+results_sorted = sorted(results, key=lambda x: x['val_loss'], reverse=False)
 os.makedirs('./tuning_result', exist_ok=True)
 with open('./tuning_result/best_params.json', 'w') as f:
     json.dump(results_sorted, f, indent=4)

@@ -30,7 +30,7 @@ def tokenize_one(preprocessed_path,embedding_path):
 
         # Tokenisasi 1 sample
         sample_text = random.choice(texts)
-        encoded = tokenizer(sample_text, return_tensors='pt', padding='max_length', truncation=True, max_length=40)
+        encoded = tokenizer(sample_text, return_tensors='pt', padding='max_length', truncation=True, max_length=50)
         input_ids = encoded['input_ids'].to(device)
         attention_mask = encoded['attention_mask'].to(device)
 
@@ -48,7 +48,7 @@ def tokenize_one(preprocessed_path,embedding_path):
             "token_ids": token_ids,
             "attention_mask": attention,
             "embedding_shape": list(embedding.shape),
-            "embedding_preview": [list(map(float, embedding[i])) for i in range(40)]
+            "embedding_preview": [list(map(float, embedding[i])) for i in range(50)]
         }
 
     except Exception as e:

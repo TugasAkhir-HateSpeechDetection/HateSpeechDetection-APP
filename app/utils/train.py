@@ -36,7 +36,7 @@ y_val_tensor = torch.tensor(y_val, dtype=torch.float32)
 try:
     with open(os.path.join(ROOT_DIR, 'app', 'tuning_result', 'best_params.json')) as f:
         data = json.load(f)
-        best_item = max(data, key=lambda x: x['val_acc'])
+        best_item = min(data, key=lambda x: x['val_loss'])
         best_params = best_item['params']
 except Exception as e:
     print("Gagal membaca best_params.json:", e, flush=True)

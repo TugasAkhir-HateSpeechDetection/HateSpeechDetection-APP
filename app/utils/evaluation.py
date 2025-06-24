@@ -29,7 +29,7 @@ class BiGRUModel(nn.Module):
 def load_model_and_data():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with open('./tuning_result/best_params.json') as f:
-        best_item = max(json.load(f), key=lambda x: x['val_acc'])
+        best_item = min(json.load(f), key=lambda x: x['val_loss'])
 
     units = best_item['params']['units']
     batch_size = best_item['params']['batch_size']
