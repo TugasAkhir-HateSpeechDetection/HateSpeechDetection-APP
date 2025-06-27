@@ -20,13 +20,17 @@ def standarize_text(text):
 def preprocess_text(text):
     if pd.isnull(text):
         return ''
-    #remove RT USER EMOJI
-    text = re.sub(r'^RT\s+|\bUSER\b|\\x[0-9a-fA-F]{2}+', '', text)
-    text = re.sub(r'&[a-zA-Z]+;|\\n', ' ', text).lower()
+    text = re.sub(r'^RT\s+', '', text)
+    text = re.sub(r'\bUSER\b', '', text)
+    text = text.lower()
+    text = re.sub(r'(\\x[0-9a-fA-F]{2})+', '', text)
+    text = re.sub(r'&[a-zA-Z]+;', '', text)
+    text = re.sub(r'\\n', ' ', text)
     text = re.sub(r'[!"$%&\'()*+,\-./:;<=>?@\[\\\]^{|}~_#]', ' ', text)
     text = standarize_text(text)
     text = stopword_remover.remove(text)
-    text = re.sub(r'\b\d+\b|\b[a-zA-Z]\b', '', text)
+    text = re.sub(r'\b\d+\b', '', text)
+    text = re.sub(r'\b[a-zA-Z]\b', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 

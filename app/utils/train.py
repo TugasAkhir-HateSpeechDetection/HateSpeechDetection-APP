@@ -7,44 +7,73 @@ import torch.nn as nn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
+from torch.nn.utils.rnn import pack_padded_sequence
+import random
 
-# Setup
-print("Menyiapkan data dan model...", flush=True)
+# === Pengaturan SEED ===
+USE_SEED = True
+SEED = 42
+
+if USE_SEED:
+    def set_seed(seed=SEED):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    set_seed(SEED)
+
+    def seed_worker(worker_id):
+        worker_seed = SEED + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    g = torch.Generator()
+    g.manual_seed(SEED)
+    print(f"[INFO] SEED diaktifkan dengan nilai {SEED}", flush=True)
+else:
+    seed_worker = None
+    g = None
+    print("[INFO] SEED tidak digunakan (hasil tidak reproducible)", flush=True)
+
+# === Setup Path ===
+print("[INFO] Menyiapkan data dan model...", flush=True)
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 embedding_path = os.path.join(ROOT_DIR, 'app', 'embedded', 'bert_embedding.npy')
+lengths_path = os.path.join(ROOT_DIR, 'app', 'embedded', 'bert_lengths.npy')
 preprocessed_path = os.path.join(ROOT_DIR, 'app', 'preprocessed', 'preprocessed_data.csv')
 eval_dir = os.path.join(ROOT_DIR, 'app', 'evaluation')
 os.makedirs(eval_dir, exist_ok=True)
 
 X = np.load(embedding_path)
+lengths = np.load(lengths_path)
 y_df = pd.read_csv(preprocessed_path)
 y = y_df.drop(columns=['Tweet']).values
 
-# Split: 20% test (disimpan), 10% validasi dari sisa 80%
-X_train_full, _, y_train_full, _ = train_test_split(X, y, test_size=0.2, random_state=42)
-X_train, X_val, y_train, y_val = train_test_split(X_train_full, y_train_full, test_size=0.1, random_state=42)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+X_train, X_test, lengths_train, lengths_test, y_train, y_test = train_test_split(
+    X, lengths, y, test_size=0.2, random_state=SEED if USE_SEED else None
+)
 
 X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+lengths_tensor = torch.tensor(lengths_train, dtype=torch.int64)
 y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
-X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
-y_val_tensor = torch.tensor(y_val, dtype=torch.float32)
 
-# Load best params
+# === Load best params ===
 try:
     with open(os.path.join(ROOT_DIR, 'app', 'tuning_result', 'best_params.json')) as f:
         data = json.load(f)
-        best_item = min(data, key=lambda x: x['val_loss'])
+        best_item = max(data, key=lambda x: x['val_acc'])
         best_params = best_item['params']
 except Exception as e:
     print("Gagal membaca best_params.json:", e, flush=True)
     exit(1)
 
-print(f"Mulai training dengan hyperparameter: {best_params}", flush=True)
+print(f"\nMulai training dengan hyperparameter: {best_params}", flush=True)
 
-# Model
+# === Model ===
 class BiGRUModel(nn.Module):
     def __init__(self, units):
         super(BiGRUModel, self).__init__()
@@ -52,30 +81,36 @@ class BiGRUModel(nn.Module):
         self.fc = nn.Linear(units * 2, 9)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        _, h = self.gru(x)
+    def forward(self, x, lengths):
+        packed = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
+        _, h = self.gru(packed)
         h_concat = torch.cat((h[0], h[1]), dim=1)
         out = self.fc(h_concat)
         return self.sigmoid(out)
 
-train_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor), batch_size=best_params['batch_size'], shuffle=True)
-val_loader = DataLoader(TensorDataset(X_val_tensor, y_val_tensor), batch_size=best_params['batch_size'], shuffle=False)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+train_loader = DataLoader(
+    TensorDataset(X_train_tensor, lengths_tensor, y_train_tensor),
+    batch_size=best_params['batch_size'], shuffle=True,
+    worker_init_fn=seed_worker if USE_SEED else None,
+    generator=g if USE_SEED else None
+)
 
 model = BiGRUModel(best_params['units']).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=best_params['learning_rate'])
 criterion = nn.BCELoss()
 
-train_losses, val_losses = [], []
-train_accs, val_accs = [], []
+train_losses, train_accs = [], []
 
 for epoch in range(best_params['epochs']):
     model.train()
     epoch_train_loss, epoch_train_acc = [], []
-    for xb, yb in train_loader:
-        xb, yb = xb.to(device), yb.to(device)
+    for xb, lengths, yb in train_loader:
+        xb, lengths, yb = xb.to(device), lengths.to(device), yb.to(device)
         optimizer.zero_grad()
-        preds = model(xb).squeeze()
-        loss = criterion(preds, yb.float())
+        preds = model(xb, lengths).squeeze()
+        loss = criterion(preds, yb)
         loss.backward()
         optimizer.step()
 
@@ -84,60 +119,39 @@ for epoch in range(best_params['epochs']):
         acc = (preds_binary == yb).float().mean().item()
         epoch_train_acc.append(acc)
 
-    # Validation
-    model.eval()
-    epoch_val_loss, epoch_val_acc = [], []
-    with torch.no_grad():
-        for xb, yb in val_loader:
-            xb, yb = xb.to(device), yb.to(device)
-            preds = model(xb).squeeze()
-            loss = criterion(preds, yb.float())
-            epoch_val_loss.append(loss.item())
-            preds_binary = (preds > 0.5).float()
-            acc = (preds_binary == yb).float().mean().item()
-            epoch_val_acc.append(acc)
-
     avg_train_loss = np.mean(epoch_train_loss)
-    avg_val_loss = np.mean(epoch_val_loss)
     avg_train_acc = np.mean(epoch_train_acc)
-    avg_val_acc = np.mean(epoch_val_acc)
 
     train_losses.append(avg_train_loss)
-    val_losses.append(avg_val_loss)
     train_accs.append(avg_train_acc)
-    val_accs.append(avg_val_acc)
 
-    print(f"Epoch {epoch+1}/{best_params['epochs']} - Train Acc: {avg_train_acc:.4f} | Val Acc: {avg_val_acc:.4f} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}", flush=True)
+    print(f"Epoch {epoch+1}/{best_params['epochs']} - Train Acc: {avg_train_acc:.4f} | Train Loss: {avg_train_loss:.4f}", flush=True)
 
-# Save model
+# === Save model ===
 model_path = os.path.join(ROOT_DIR, 'app', 'models', 'Bi-GRU.pt')
 os.makedirs(os.path.dirname(model_path), exist_ok=True)
 torch.save({
     'model_state_dict': model.state_dict(),
     'units': best_params['units']
 }, model_path)
-print(f"\nTraining selesai. Model berhasil disimpan", flush=True)
+print(f"\n[INFO] Training selesai. Model berhasil disimpan", flush=True)
 
-# Save visualization
+# === Save plot ===
 plot_path = os.path.join(eval_dir, 'training_plot.png')
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(10, 4))
 
 plt.subplot(1, 2, 1)
-plt.plot(train_losses, label='Train Loss')
-plt.plot(val_losses, label='Val Loss')
+plt.plot(train_accs, label='Train Accuracy', color='green')
 plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Loss per Epoch')
+plt.ylabel('Accuracy')
+plt.title('Train Accuracy per Epoch')
 plt.legend()
 
 plt.subplot(1, 2, 2)
-plt.plot(train_accs, label='Train Acc')
-plt.plot(val_accs, label='Val Acc')
+plt.plot(train_losses, label='Train Loss', color='orange')
 plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.title('Accuracy per Epoch')
+plt.ylabel('Loss')
+plt.title('Train Loss per Epoch')
 plt.legend()
-
 plt.tight_layout()
 plt.savefig(plot_path)
-# print(f"Visualisasi pelatihan disimpan di {plot_path}", flush=True)

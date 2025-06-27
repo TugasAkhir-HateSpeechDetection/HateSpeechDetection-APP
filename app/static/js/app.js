@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* -------- MULAI TRAINING -------- */
   trainBtn.addEventListener('click', () => {
-    logArea.textContent = 'Memulai training...\n';
+    logArea.textContent = '[INFO] Memulai training...\n';
     spinner.classList.remove('hidden');
     showPlotWrap.classList.add('hidden');
     plotContainer.classList.add('hidden');
@@ -527,12 +527,12 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
     div.appendChild(img);
 
     // Ambil mean accuracy & loss
-    const summaryResp = await fetch("/evaluation/classification_report.json");
+    const summaryResp = await fetch("/evaluation/evaluation_score.json");
     const summaryData = await summaryResp.json();
-    const averageEntry = summaryData.find(item => item.label === "average");
+    const evaluation = summaryData[0];
 
-    const meanAccuracy = averageEntry?.mean_accuracy ?? "N/A";
-    const meanLoss = averageEntry?.mean_loss ?? "N/A";
+    const meanAccuracy = evaluation?.mean_accuracy ?? "N/A";
+    const meanLoss = evaluation?.mean_loss ?? "N/A";
 
     // Tambahkan judul Classification Report
     const reportTitle = document.createElement("h3");
@@ -543,7 +543,7 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
     // Tambahkan teks accuracy & loss
     const metricP = document.createElement("p");
     metricP.className = "text-sm text-gray-800 mt-2 mb-1";
-    metricP.innerHTML = `Test Accuracy: <strong>${meanAccuracy}</strong> &nbsp; | &nbsp; Test Loss: <strong>${meanLoss}</strong>`;
+    metricP.innerHTML = `Test Accuracy: <strong>${(parseFloat(meanAccuracy) * 100).toFixed(2)}%</strong> &nbsp; | &nbsp; Test Loss: <strong>${meanLoss}</strong>`;
     div.appendChild(metricP);
 
     // Ambil classification report
@@ -557,17 +557,17 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
           <tr class="bg-gray-200">
             <th class="border px-2 py-1">Label</th>
             <th class="border px-2 py-1">Accuracy</th>
-            <th class="border px-2 py-1">Recall</th>
             <th class="border px-2 py-1">Precision</th>
+            <th class="border px-2 py-1">Recall</th>
           </tr>
         </thead>
         <tbody>
-          ${reportData.map(row => `
+          ${reportData.filter(row => row.label !== "average").map(row => `
             <tr>
               <td class="border px-2 py-1">${row.label}</td>
-              <td class="border px-2 py-1">${parseFloat(row.accuracy).toFixed(4)}</td>
-              <td class="border px-2 py-1">${parseFloat(row.recall).toFixed(4)}</td>
-              <td class="border px-2 py-1">${parseFloat(row.precision).toFixed(4)}</td>
+              <td class="border px-2 py-1">${(parseFloat(row.accuracy) * 100).toFixed(2)}%</td>
+              <td class="border px-2 py-1">${(parseFloat(row.precision) * 100).toFixed(2)}%</td>
+              <td class="border px-2 py-1">${(parseFloat(row.recall) * 100).toFixed(2)}%</td>
             </tr>
           `).join("")}
         </tbody>

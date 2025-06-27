@@ -3,6 +3,7 @@ import torch
 import os
 import pandas as pd
 from torch import nn
+from torch.nn.utils.rnn import pack_padded_sequence
 from transformers import BertTokenizer, BertModel
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
@@ -38,11 +39,16 @@ class BiGRUModel(nn.Module):
         self.fc = nn.Linear(units * 2, len(LABELS))
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        _, h = self.gru(x)
-        h_cat = torch.cat((h[0], h[1]), dim=1)
-        return self.sigmoid(self.fc(h_cat))
-
+    def forward(self, x, lengths=None):
+        if lengths is not None:
+            lengths = torch.clamp(lengths, max=x.size(1))  # jaga-jaga kalau ada out of bounds
+            packed = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
+            _, h = self.gru(packed)
+        else:
+            _, h = self.gru(x)
+        h_concat = torch.cat((h[0], h[1]), dim=1)
+        return self.sigmoid(self.fc(h_concat))
+    
 # === Preprocessing Functions ===
 def standarize_text(text):
     words = text.split()
@@ -51,9 +57,9 @@ def standarize_text(text):
 def preprocess_text(text):
     if pd.isnull(text):
         return ''
+    text = re.sub(r'^RT\s+', '', text)
+    text = re.sub(r'\bUSER\b', '', text)
     text = text.lower()
-    text = re.sub(r'^rt\s+', '', text)
-    text = re.sub(r'\buser\b', '', text)
     text = re.sub(r'(\\x[0-9a-fA-F]{2})+', '', text)
     text = re.sub(r'&[a-zA-Z]+;', '', text)
     text = re.sub(r'\\n', ' ', text)
@@ -62,13 +68,16 @@ def preprocess_text(text):
     text = stopword_remover.remove(text)
     text = re.sub(r'\b\d+\b', '', text)
     text = re.sub(r'\b[a-zA-Z]\b', '', text)
-    return re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
-def get_bert_embedding(text, max_len=40):
-    tokens = tokenizer(text, return_tensors='pt', padding='max_length', truncation=True, max_length=max_len)
+def get_bert_embedding(text):
+    tokens = tokenizer(text, return_tensors='pt', padding=True, truncation=True)
     with torch.no_grad():
         output = bert_model(**tokens)
-    return output.last_hidden_state
+    bert_embed = output.last_hidden_state  # (1, max_len, 768)
+    lengths = tokens['attention_mask'].sum(dim=1)  # (1,)
+    return bert_embed, lengths
 
 # === Load Model ===
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,7 +89,7 @@ def load_model():
     if os.path.exists(MODEL_PATH):
         try:
             checkpoint = torch.load(MODEL_PATH, map_location=device)
-            units = checkpoint.get('units', 64)  # default units jika tidak ada
+            units = checkpoint.get('units', 50)  # default units jika tidak ada
             model_instance = BiGRUModel(units)
             model_instance.load_state_dict(checkpoint['model_state_dict'])
             model_instance.to(device)
@@ -100,10 +109,12 @@ def predict_tweet(text):
         return [{"error": "Model belum tersedia. Silakan latih atau unggah model terlebih dahulu."}]
     
     clean_text = preprocess_text(text)
-    bert_embed = get_bert_embedding(clean_text).to(device)
-    
+    bert_embed, lengths = get_bert_embedding(clean_text)
+    bert_embed = bert_embed.to(device)
+    lengths = lengths.to(device)
+
     with torch.no_grad():
-        output = model(bert_embed)
+        output = model(bert_embed, lengths)
     
     
     probabilities = output.cpu().numpy()[0]

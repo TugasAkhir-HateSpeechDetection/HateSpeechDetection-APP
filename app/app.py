@@ -121,11 +121,12 @@ def preprocess_dataset():
 def start_tokenization():
     preprocessed_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
     embedded_path = os.path.join(EMBEDDED_FOLDER, 'bert_embedding.npy')
+    lengths_path = os.path.join(EMBEDDED_FOLDER, 'bert_lengths.npy')  
     script_path = os.path.join('utils', 'tokenize_batch.py')
 
     def generate():
         process = subprocess.Popen(
-            [python_executable, script_path, preprocessed_path, embedded_path],
+            [python_executable, script_path, preprocessed_path, embedded_path, lengths_path],  # <- Ubah sini
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -150,8 +151,6 @@ def tokenization_sample():
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-    
 
 @app.route('/start-tuning')
 def start_tuning():
@@ -184,7 +183,7 @@ def get_best_params():
     try:
         with open('./tuning_result/best_params.json') as f:
             data = json.load(f)
-            best = min(data, key=lambda x: x['val_loss'])
+            best = max(data, key=lambda x: x['val_acc'])
             return jsonify(best['params'])
     except Exception as e:
         return jsonify({})
@@ -216,18 +215,6 @@ def get_training_plot():
         return send_file(plot_path, mimetype='image/png')
     else:
         return jsonify({'error': 'File tidak ditemukan'}), 404
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    load_model()
-    data = request.json
-    tweet_text = data.get('tweet', '')
-    if not tweet_text:
-        return jsonify({"error": "No tweet text provided"}), 400
-
-    results = predict_tweet(tweet_text)
-    return jsonify(results)
-
 @app.route("/evaluate-model", methods=["GET"])
 def evaluate_model():
     load_model()
@@ -254,5 +241,16 @@ def get_hamming_loss():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+@app.route('/predict', methods=['POST'])
+def predict():
+    load_model()
+    data = request.json
+    tweet_text = data.get('tweet', '')
+    if not tweet_text:
+        return jsonify({"error": "No tweet text provided"}), 400
+
+    results = predict_tweet(tweet_text)
+    return jsonify(results)
+
 if __name__ == '__main__':
     app.run(debug=False,threaded=True)
