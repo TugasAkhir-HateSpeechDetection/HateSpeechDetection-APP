@@ -5,38 +5,44 @@ import pandas as pd
 import subprocess
 import json
 import sys
+
 from utils.preprocess import run_preprocessing
 from utils.tokenization import tokenize_one
 from utils.testing import predict_tweet, load_model
 from utils.evaluation import run_evaluation
 
-
 app = Flask(__name__)
 
+# Folder konfigurasi
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 PREPROCESSED_FOLDER = os.path.join(os.getcwd(), 'preprocessed')
 EMBEDDED_FOLDER = os.path.join(os.getcwd(), 'embedded')
 
+# Pastikan direktori tersedia
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PREPROCESSED_FOLDER, exist_ok=True)
 os.makedirs(EMBEDDED_FOLDER, exist_ok=True)
 
+# Simpan konfigurasi ke Flask
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PREPROCESSED_FOLDER'] = PREPROCESSED_FOLDER
 app.config['EMBEDDED_FOLDER'] = EMBEDDED_FOLDER
 
-#Global Variable
+# Variabel global
 uploaded_filename = ""
-python_executable = sys.executable 
+python_executable = sys.executable
+
+# ======================= ROUTING =======================
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# Upload dataset CSV
 @app.route('/upload_dataset', methods=['POST'])
 def upload_dataset():
     global uploaded_filename
-    
+
     if 'file' not in request.files:
         return jsonify({'error': 'Tidak ada file pada request'}), 400
 
@@ -47,15 +53,14 @@ def upload_dataset():
     if not file.filename.endswith('.csv'):
         return jsonify({'error': 'Hanya file .csv yang diperbolehkan'}), 400
 
-    # Unique file naming
     timestamp = int(time.time())
     uploaded_filename = f"dataset_{timestamp}.csv"
-
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_filename)
     file.save(file_path)
 
     return jsonify({'status': 'ok', 'filename': uploaded_filename}), 200
 
+# Menampilkan 10 baris pertama dari dataset
 @app.route('/show_dataset', methods=['GET'])
 def show_dataset():
     global uploaded_filename
@@ -64,16 +69,15 @@ def show_dataset():
         return jsonify({'error': 'Tidak ada dataset yang diupload'}), 400
 
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_filename)
-    
+
     try:
         df = pd.read_csv(file_path, encoding='latin1')
-        
         df.insert(0, 'No.', range(1, len(df) + 1))
         tweet_col = df.pop('Tweet')
         df.insert(1, 'Tweet', tweet_col)
-        
+
         head_data = df.head(10).to_dict(orient='records')
-        shape = df.shape  # (rows, columns)
+        shape = df.shape
 
         return jsonify({
             'data': head_data,
@@ -82,10 +86,12 @@ def show_dataset():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+# Preprocessing tweet
 @app.route('/preprocess', methods=['GET'])
 def preprocess_dataset():
     global uploaded_filename
+
     if not uploaded_filename:
         return jsonify({'error': 'Tidak ada dataset diupload'}), 400
 
@@ -93,20 +99,15 @@ def preprocess_dataset():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_filename)
         df = pd.read_csv(file_path, encoding='latin1')
 
-        # Buat data original (preview)
         df_original = df[['Tweet']].copy()
         df_original.insert(0, 'No.', range(1, len(df_original) + 1))
 
-        # Proses data
         df_processed = run_preprocessing(df)
-
-        # Buat data preview hasil
         df_processed_preview = df_processed[['Tweet']].copy()
         df_processed_preview.insert(0, 'No.', range(1, len(df_processed_preview) + 1))
 
-        # Simpan hasil full (tanpa preview)
         output_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
-        df_processed.to_csv(output_path, index=False)   
+        df_processed.to_csv(output_path, index=False)
 
         return jsonify({
             'original': df_original.head(10).to_dict(orient='records'),
@@ -116,17 +117,18 @@ def preprocess_dataset():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+# Tokenisasi data secara batch
 @app.route('/start-tokenization')
 def start_tokenization():
     preprocessed_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
     embedded_path = os.path.join(EMBEDDED_FOLDER, 'bert_embedding.npy')
-    lengths_path = os.path.join(EMBEDDED_FOLDER, 'bert_lengths.npy')  
+    lengths_path = os.path.join(EMBEDDED_FOLDER, 'bert_lengths.npy')
     script_path = os.path.join('utils', 'tokenize_batch.py')
 
     def generate():
         process = subprocess.Popen(
-            [python_executable, script_path, preprocessed_path, embedded_path, lengths_path],  # <- Ubah sini
+            [python_executable, script_path, preprocessed_path, embedded_path, lengths_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True
@@ -141,26 +143,27 @@ def start_tokenization():
 
     return Response(generate(), mimetype='text/event-stream')
 
+# Ambil contoh tokenisasi 1 tweet
 @app.route('/tokenization-sample')
 def tokenization_sample():
     try:
         preprocessed_path = os.path.join(PREPROCESSED_FOLDER, 'preprocessed_data.csv')
         embedded_path = os.path.join(EMBEDDED_FOLDER, 'bert_embedding.npy')
-
         result = tokenize_one(preprocessed_path, embedded_path)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Tuning hyperparameter Bi-GRU
 @app.route('/start-tuning')
 def start_tuning():
-    script_path = os.path.join(os.path.dirname(__file__), 'utils', 'tune.py')
+    script_path = os.path.join('utils', 'tune.py')
+
     def generate():
         process = subprocess.Popen(
             [python_executable, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            bufsize=1,
             text=True
         )
 
@@ -169,6 +172,7 @@ def start_tuning():
 
     return Response(generate(), mimetype='text/event-stream')
 
+# Mengambil seluruh hasil tuning
 @app.route('/get-tuning-result')
 def get_tuning_result():
     try:
@@ -177,7 +181,8 @@ def get_tuning_result():
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)})
-    
+
+# Mengambil best params hasil tuning
 @app.route('/get-best-params')
 def get_best_params():
     try:
@@ -185,19 +190,19 @@ def get_best_params():
             data = json.load(f)
             best = max(data, key=lambda x: x['val_acc'])
             return jsonify(best['params'])
-    except Exception as e:
+    except Exception:
         return jsonify({})
-    
+
+# Latih model Bi-GRU
 @app.route('/train-model')
 def train_model():
-    script_path = os.path.join(os.path.dirname(__file__), 'utils', 'train.py')
+    script_path = os.path.join('utils', 'train.py')
 
     def generate():
         process = subprocess.Popen(
             [python_executable, script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            bufsize=1,
             text=True
         )
 
@@ -206,16 +211,19 @@ def train_model():
         process.stdout.close()
         process.wait()
         load_model()
+
     return Response(generate(), mimetype='text/event-stream')
 
+# Ambil plot hasil training
 @app.route('/get-training-plot')
 def get_training_plot():
     plot_path = os.path.join('app', 'evaluation', 'training_plot.png')
     if os.path.exists(plot_path):
         return send_file(plot_path, mimetype='image/png')
-    else:
-        return jsonify({'error': 'File tidak ditemukan'}), 404
-@app.route("/evaluate-model", methods=["GET"])
+    return jsonify({'error': 'File tidak ditemukan'}), 404
+
+# Evaluasi model: confusion matrix & classification report
+@app.route('/evaluate-model', methods=['GET'])
 def evaluate_model():
     load_model()
     try:
@@ -228,10 +236,12 @@ def evaluate_model():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Ambil file evaluasi (gambar/json)
 @app.route("/evaluation/<path:filename>")
 def evaluation_files(filename):
     return send_from_directory("evaluation", filename)
 
+# Ambil nilai hamming loss
 @app.route("/get-hamming-loss")
 def get_hamming_loss():
     try:
@@ -240,7 +250,8 @@ def get_hamming_loss():
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+# Endpoint prediksi 1 tweet
 @app.route('/predict', methods=['POST'])
 def predict():
     load_model()
@@ -252,5 +263,6 @@ def predict():
     results = predict_tweet(tweet_text)
     return jsonify(results)
 
+# Jalankan server
 if __name__ == '__main__':
-    app.run(debug=False,threaded=True)
+    app.run(debug=False, threaded=True)

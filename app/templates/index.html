@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <title>Aplikasi Pendeteksi Hate Speech</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <title>Aplikasi Pendeteksi Hate Speech</title>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="flex h-screen">
-    <!-- Sidebar -->
+    
+    <!-- Sidebar Navigasi -->
     <aside class="w-64 bg-white shadow-md p-4">
       <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">Bi-GRU HateSpeech Detection</h1>
       <nav class="space-y-2">
+        <!-- Tombol navigasi halaman -->
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('upload')">📂 Upload Dataset</button>
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('preprocess')">🧹 Preprocessing</button>
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('tokenize')">🔠 Tokenisasi</button>
@@ -21,115 +23,119 @@
         <button class="w-full text-left px-4 py-2 rounded hover:bg-blue-100" onclick="navigate('test')">🧪 Testing Model</button>
       </nav>
     </aside>
+
+    <!-- Konten Utama -->
     <main class="flex-1 p-6 overflow-auto">
-        <div id="upload" class="content-section">
-            <h2 class="text-xl font-semibold mb-4">Upload Dataset</h2>
-            <p>Unggah file dataset (.csv) yang berisi tweet dan label untuk tugas klasifikasi multi-label.</p>
-          
-            <input type="file" id="datasetFile" accept=".csv" class="mt-4 block" />
-            <button id="uploadBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload</button>
-            <button id="showBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Tampilkan</button>
-          
-            <div id="uploadStatus" class="mt-4 font-medium"></div>
-            <div id="tableContainer" class="mt-6"></div>
-        </div>  
-          
 
-          <div id="preprocess" class="content-section hidden">
-            <h2 class="text-xl font-semibold mb-4">Pra-pemrosesan Data</h2>
-            <p>Proses pembersihan dataset dilakukan melalui sejumlah tahapan prapemrosesan.</p>
-            <!-- Tombol -->
-            <button id="preprocessBtn" class="mt-4 mb-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">Mulai Preprocessing</button>
-             <!-- Sebelum tokenisasi -->
-            <div class="mt-4">
-              <h3 class="text-lg font-semibold">Sebelum Preprocessing:</h3>
-              <div id="originalData" class="mt-4"></div>
-            </div>
-            <!-- Setelah tokenisasi -->
-            <div class="mt-6">
-              <h3 class="text-lg font-semibold">Setelah Preprocessing:</h3>
-              <div id="preprocessedData" class="mt-4"></div>
-            </div>
+      <!-- ===================== Upload Dataset ===================== -->
+      <div id="upload" class="content-section">
+        <h2 class="text-xl font-semibold mb-4">Upload Dataset</h2>
+        <p>Unggah file dataset (.csv) yang berisi tweet dan label untuk klasifikasi multi-label.</p>
+
+        <input type="file" id="datasetFile" accept=".csv" class="mt-4 block" />
+        <button id="uploadBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload</button>
+        <button id="showBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Tampilkan</button>
+
+        <div id="uploadStatus" class="mt-4 font-medium"></div>
+        <div id="tableContainer" class="mt-6"></div>
+      </div>
+
+      <!-- ===================== Preprocessing ===================== -->
+      <div id="preprocess" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Pra-pemrosesan Data</h2>
+        <p>Membersihkan dataset dari karakter tidak relevan, simbol, dan mengubah ke huruf kecil.</p>
+
+        <button id="preprocessBtn" class="mt-4 mb-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">Mulai Preprocessing</button>
+        
+        <!-- Tampilkan data sebelum dan sesudah preprocessing -->
+        <div class="mt-4">
+          <h3 class="text-lg font-semibold">Sebelum Preprocessing:</h3>
+          <div id="originalData" class="mt-4"></div>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold">Setelah Preprocessing:</h3>
+          <div id="preprocessedData" class="mt-4"></div>
+        </div>
+      </div>
+
+      <!-- ===================== Tokenisasi ===================== -->
+      <div id="tokenize" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Tokenisasi</h2>
+        <p>Tokenisasi dilakukan dengan pretrained model BERT Indonesia:
+          <a class="text-blue-600 hover:underline" href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">
+            cahya/bert-base-indonesian-522M
+          </a>
+        </p>
+
+        <div class="mt-4 space-x-2">
+          <button id="startTokenizeProgress" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Mulai Tokenisasi</button>
+          <button id="showTokenSample" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Tampilkan Sampel</button>
+        </div>
+
+        <!-- Progress bar tokenisasi -->
+        <div id="progressContainer" class="w-full mt-6 mb-6 hidden">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-blue-700" id="barTitle">Tokenizing Progress</span>
+            <span id="progressPercent" class="text-sm font-medium text-blue-700">0%</span>
           </div>
-
-          
-          
-
-          <div id="tokenize" class="content-section hidden">
-            <h2 class="text-xl font-semibold mb-4">Tokenisasi</h2>
-            <p>Memproses data input dengan tokenisasi menggunakan model pra-latih BERT, yaitu <a class="text-blue-600 hover:underline" href="https://huggingface.co/cahya/bert-base-indonesian-522M" target="_blank">cahya/bert-base-indonesian-522M</a>.</p>
-
-            <div class="mt-4 space-x-2">
-              <button id="startTokenizeProgress" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                Mulai Tokenisasi
-              </button>
-              <button id="showTokenSample" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                Tampilkan Sampel
-              </button>
-            </div>
-
-            <div id="progressContainer" class="w-full mt-6 mb-6 hidden">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm font-medium text-blue-700" id="barTitle">Tokenizing Progress</span>
-                <span id="progressPercent" class="text-sm font-medium text-blue-700">0%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700">
-                <div id="progressBar" class="h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
-              </div>
-              <p id="progressStatus" class="text-sm text-gray-600 mt-1 italic"></p>
-            </div>
-
-            <div class="mt-4">
-              <h3 class="text-lg font-semibold">Teks Asli:</h3>
-              <div id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap"></div>
-            </div>
-
-            <div class="mt-6">
-              <h3 class="text-lg font-semibold" id="tokenTitle">Hasil Tokenisasi:</h3>
-              <div id="tokenResult" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto">
-                <!-- Tabel akan dirender di sini -->
-              </div>
-            </div>
+          <div class="w-full bg-gray-200 rounded-full h-4">
+            <div id="progressBar" class="h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
           </div>
-          
-      
+          <p id="progressStatus" class="text-sm text-gray-600 mt-1 italic"></p>
+        </div>
 
-          <div id="tune" class="content-section hidden">
-            <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
-            <p>Mencari kombinasi optimal epoch, units, learning rate, dan batch size melalui Random Search (40 iterasi) dengan 5 fold cross-validation.</p>
-            <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" id="btnTune">Mulai Tuning</button>
-            <div id="tuningSpinner" style="display:none; margin-left: 10px;">
-              ⏳ Tuning sedang berlangsung...
-            </div>
-            <pre id="tuningLog" class="mt-4 bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
-            <div class="mt-6">
-              <h3 class="text-lg font-semibold">Hasil Tuning:</h3>
-              <table class="w-full bg-white shadow rounded mt-2 text-sm">
-                <thead>
-                  <tr class="bg-gray-100">
-                    <th class="px-4 py-2">Iterasi</th>
-                    <th class="px-4 py-2">Epoch</th>
-                    <th class="px-4 py-2">Units</th>
-                    <th class="px-4 py-2">Learning Rate</th>
-                    <th class="px-4 py-2">Batch Size</th>
-                    <th class="px-4 py-2">Val Acc</th>
-                  </tr>
-                </thead>
-                <tbody>
-                </tbody>
-              </table>
-            </div>
-          </div>
-      
+        <!-- Hasil tokenisasi -->
+        <div class="mt-4">
+          <h3 class="text-lg font-semibold">Teks Asli:</h3>
+          <div id="preTokenText" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto whitespace-pre-wrap"></div>
+        </div>
 
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold" id="tokenTitle">Hasil Tokenisasi:</h3>
+          <div id="tokenResult" class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"></div>
+        </div>
+      </div>
+
+      <!-- ===================== Tuning Hyperparameter ===================== -->
+      <div id="tune" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Tuning Hyperparameter</h2>
+        <p>Proses ini mencari kombinasi terbaik dari parameter training menggunakan Random Search dan Cross-validation.</p>
+
+        <button class="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" id="btnTune">Mulai Tuning</button>
+        <div id="tuningSpinner" class="mt-2 text-sm text-gray-500 hidden">⏳ Tuning sedang berlangsung...</div>
+
+        <pre id="tuningLog" class="mt-4 bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
+
+        <!-- Tabel hasil tuning -->
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold">Hasil Tuning:</h3>
+          <table class="w-full bg-white shadow rounded mt-2 text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-4 py-2">Iterasi</th>
+                <th class="px-4 py-2">Epoch</th>
+                <th class="px-4 py-2">Units</th>
+                <th class="px-4 py-2">Learning Rate</th>
+                <th class="px-4 py-2">Batch Size</th>
+                <th class="px-4 py-2">Val Acc</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===================== Training Model ===================== -->
       <div id="train" class="content-section hidden">
-          <h2 class="text-xl font-semibold mb-4">Training Model</h2>
-          <p class="mb-4">Melatih ulang model dengan menggunakan kombinasi hyperparameter terbaik yang diperoleh dari hasil Random Search.</p>
+        <h2 class="text-xl font-semibold mb-4">Training Model</h2>
+        <p class="mb-4">Model dilatih menggunakan kombinasi hyperparameter terbaik yang diperoleh dari tuning.</p>
+
         <div class="mb-6">
           <h2 class="text-lg font-semibold mb-2">Best Parameters</h2>
           <table class="min-w-full bg-white border border-gray-300 rounded">
-            <thead>
-              <tr class="bg-gray-100">
+            <thead class="bg-gray-100">
+              <tr>
                 <th class="px-4 py-2 border">Epochs</th>
                 <th class="px-4 py-2 border">Units</th>
                 <th class="px-4 py-2 border">Learning Rate</th>
@@ -147,73 +153,57 @@
           </table>
         </div>
 
-        <!-- Spinner -->
         <div id="spinner" class="hidden mt-4 text-center">
           <span class="text-sm text-gray-500">Proses training sedang berjalan...</span>
         </div>
 
-        <!-- Train Button -->
         <div class="my-4">
-          <button id="trainBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Mulai Training
-          </button>
+          <button id="trainBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Mulai Training</button>
         </div>
 
-        <!-- Log Area -->
         <div>
           <h2 class="text-lg font-semibold mb-2">Training Log</h2>
           <pre id="logArea" class="bg-gray-100 p-2 text-sm h-48 overflow-auto"></pre>
         </div>
 
-        <!-- Tombol Visualisasi -->
         <div class="mt-8 hidden" id="showPlotWrapper">
-          <button id="showPlotBtn"
-                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Visualisasi Training
-          </button>
+          <button id="showPlotBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Visualisasi Training</button>
         </div>
 
-        <!-- Training Visualization -->
         <div id="trainingPlotContainer" class="mt-14 hidden">
           <h2 class="text-lg font-semibold mb-2 text-center">Visualisasi Pelatihan</h2>
-          <img id="trainingPlot" src="" alt="Training Plot" class="border border-gray-300 rounded shadow-md max-w-full mx-auto">
+          <img id="trainingPlot" src="" alt="Training Plot" class="border border-gray-300 rounded shadow-md max-w-full mx-auto" />
         </div>
       </div>
-      
-      
 
+      <!-- ===================== Evaluasi Model ===================== -->
       <div id="evaluate" class="content-section hidden">
         <h2 class="text-xl font-semibold mb-4">Evaluasi Model</h2>
-        <p>Menampilkan metrik seperti akurasi, precision, recall, dan confusion matrix</p>
-
+        <p>Evaluasi dilakukan menggunakan metrik klasifikasi: akurasi, precision, recall, dan confusion matrix.</p>
         <div class="flex items-center space-x-2 mt-4">
-          <button id="runEvaluation" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-            Lihat Evaluasi
-          </button>
-
+          <button id="runEvaluation" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Lihat Evaluasi</button>
         </div>
+        <div class="mt-6" id="classificationReportContainer"></div>
+      </div>
 
+      <!-- ===================== Testing Model ===================== -->
+      <div id="test" class="content-section hidden">
+        <h2 class="text-xl font-semibold mb-4">Testing Model</h2>
+        <p>Masukkan teks untuk melihat prediksi hate speech dari model.</p>
 
-        <div class="mt-6" id="classificationReportContainer">
+        <textarea id="tweet-input" class="w-full mt-4 p-2 border rounded" placeholder="Contoh: 'Orang ini bodoh banget!'"></textarea>
+        <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-teal-700">Cek Prediksi</button>
 
+        <div class="mt-6">
+          <h3 class="text-lg font-semibold">Hasil Prediksi:</h3>
+          <div id="prediction-results" class="mt-4 space-y-2"></div>
         </div>
       </div>
 
-      
-
-      <div id="test" class="content-section hidden">
-        <h2 class="text-xl font-semibold mb-4">Testing Model</h2>
-        <p>Masukkan teks untuk melihat prediksi label ujaran kebencian.</p>
-        
-        <textarea class="w-full mt-4 p-2 border rounded" placeholder="Contoh: 'Orang ini bodoh banget!'" id="tweet-input"></textarea>
-        <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-teal-700">Cek Prediksi</button>
-      
-        <div class="mt-6">
-          <h3 class="text-lg font-semibold">Hasil Prediksi:</h3>
-          <div id="prediction-results" class="mt-4 space-y-2">
-          </div>
-        </div>
     </main>
+  </div>
+
+  <!-- JavaScript -->
   <script src="static/js/app.js"></script>
 </body>
 </html>

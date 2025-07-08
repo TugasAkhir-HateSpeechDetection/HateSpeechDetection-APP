@@ -1,34 +1,19 @@
-// Function navigasi onepage application
+// Navigasi antar halaman di aplikasi one-page
 function navigate(targetId) {
-  const sections = document.querySelectorAll(".content-section");
-  sections.forEach(section => {
-    if (section.id === targetId) {
-      section.classList.remove("hidden");
-    } else {
-      section.classList.add("hidden");
-    }
+  document.querySelectorAll(".content-section").forEach(section => {
+    section.classList.toggle("hidden", section.id !== targetId);
   });
-
-  if (targetId === 'preprocess') {
-    loadOriginalSample(); 
-  }
+  if (targetId === 'preprocess') loadOriginalSample();
 }
 
-//Function Handle file upload
+// Proses upload file dataset .csv ke server
 async function handleFileUpload() {
   const fileInput = document.getElementById('datasetFile');
   const uploadStatus = document.getElementById('uploadStatus');
-
-  if (!fileInput || !uploadStatus) {
-    console.error('Elemen input atau status tidak ditemukan');
-    return;
-  }
-
-  const file = fileInput.files[0];
+  const file = fileInput?.files[0];
 
   if (!file) {
-    uploadStatus.classList.remove('hidden', 'text-green-600', 'text-red-600');
-    uploadStatus.classList.add('text-red-600');
+    uploadStatus.className = 'mt-4 text-red-600 font-medium';
     uploadStatus.innerText = '❌ Silakan pilih file terlebih dahulu.';
     return;
   }
@@ -43,355 +28,290 @@ async function handleFileUpload() {
     });
 
     const result = await response.json();
-
-    uploadStatus.classList.remove('hidden', 'text-red-600', 'text-green-600');
-
-    if (response.ok) {
-      uploadStatus.classList.add('text-green-600');
-      uploadStatus.innerText = `✅ ${result.message || 'File berhasil diupload!'}`;
-    } else {
-      uploadStatus.classList.add('text-red-600');
-      uploadStatus.innerText = `❌ ${result.error || 'Upload gagal.'}`;
-    }
+    uploadStatus.className = response.ok ? 'mt-4 text-green-600 font-medium' : 'mt-4 text-red-600 font-medium';
+    uploadStatus.innerText = response.ok
+      ? `✅ ${result.message || 'File berhasil diunggah.'}`
+      : `❌ ${result.error || 'Upload gagal.'}`;
   } catch (error) {
-    uploadStatus.classList.remove('hidden', 'text-green-600');
-    uploadStatus.classList.add('text-red-600');
-    uploadStatus.innerText = '❌ Terjadi kesalahan saat mengunggah file.';
     console.error(error);
+    uploadStatus.className = 'mt-4 text-red-600 font-medium';
+    uploadStatus.innerText = '❌ Terjadi kesalahan saat mengunggah file.';
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const uploadBtn = document.getElementById('uploadBtn');
-  const showBtn = document.getElementById('showBtn');
-  const tableContainer = document.getElementById('tableContainer');
-
-  if (!uploadBtn || !showBtn || !tableContainer) {
-    console.error('Satu atau lebih elemen (#uploadBtn, #showBtn, #tableContainer) tidak ditemukan');
-    return;
-  }
-
-  uploadBtn.addEventListener('click', handleFileUpload);
-
-  // Show dataset button handling
-  showBtn.addEventListener('click', async () => {
-    tableContainer.innerHTML = '⏳ Memuat data...';
-
-    try {
-      const response = await fetch('/show_dataset');
-      const result = await response.json();
-
-      if (response.ok) {
-        const { data, shape, columns } = result;
-
-        if (!data || !columns || !shape) {
-          tableContainer.innerText = '⚠️ Data tidak lengkap.';
-          return;
-        }
-
-        let html = `<p class="mb-2">📄 Shape Data: ${shape.rows}, ${shape.columns}</p>`;
-        html += '<table class="table-auto w-full border border-gray-300"><thead><tr>';
-
-        columns.forEach(col => {
-          html += `<th class="px-2 py-1 border bg-gray-100">${col}</th>`;
-        });
-
-        html += '</tr></thead><tbody>';
-
-        data.forEach(row => {
-          html += '<tr>';
-          columns.forEach(col => {
-            html += `<td class="px-2 py-1 border">${row[col]}</td>`;
-          });
-          html += '</tr>';
-        });
-
-        html += '</tbody></table>';
-        tableContainer.innerHTML = html;
-      } else {
-        tableContainer.innerText = `❌ ${result.error || 'Gagal menampilkan data'}`;
-      }
-    } catch (error) {
-      console.error(error);
-      tableContainer.innerText = '❌ Terjadi kesalahan saat mengambil data.';
-    }
-  });
-});
-
-//Frontend Handling preprocess
-// Function build table
+// Build HTML table dari data tweet
 function buildTable(data) {
   if (!data.length) return '';
-
-  let html = '<table class="table-auto w-full border border-gray-300m">';
-  html += '<thead><tr>';
-  html += '<th class="border px-2 py-1 bg-gray-100">No.</th>';  // Tambahkan kolom No.
+  let html = '<table class="table-auto w-full border border-gray-300"><thead><tr>';
+  html += '<th class="border px-2 py-1 bg-gray-100">No.</th>';
   html += '<th class="border px-2 py-1 bg-gray-100">Tweet</th>';
   html += '</tr></thead><tbody>';
-
-  data.forEach((row, index) => {
-    html += '<tr>';
-    html += `<td class="border px-2 py-1">${index + 1}</td>`;           // No. urut
-    html += `<td class="border px-2 py-1">${row['Tweet']}</td>`;       // Isi kolom Tweet
-    html += '</tr>';
+  data.forEach((row, i) => {
+    html += `<tr><td class="border px-2 py-1">${i + 1}</td><td class="border px-2 py-1">${row.Tweet}</td></tr>`;
   });
-
   html += '</tbody></table>';
   return html;
 }
 
+// Tampilkan data asli sebelum preprocessing
 async function loadOriginalSample() {
   const target = document.getElementById('originalData');
   target.innerHTML = '⏳ Memuat data asli…';
-
   try {
     const res = await fetch('/show_dataset');
     const json = await res.json();
-    if (res.ok) {
-      const { data, shape } = json;
-      target.innerHTML = `<p>📄 Jumlah Baris: ${shape.rows}</p>` + buildTable(data);
-    } else {
-      target.innerHTML = `❌ ${json.error || 'Gagal memuat data'}`;
-    }
+    target.innerHTML = res.ok ? `<p>📄 Jumlah Baris: ${json.shape.rows}</p>` + buildTable(json.data)
+                              : `❌ ${json.error || 'Gagal memuat data'}`;
   } catch (err) {
     console.error(err);
     target.innerHTML = '❌ Terjadi kesalahan saat memuat data.';
   }
 }
 
-document.getElementById('preprocessBtn').addEventListener('click', async () => {
-  const preprocessedDataDiv = document.getElementById('preprocessedData');
+// Proses event setelah halaman dimuat
+document.addEventListener('DOMContentLoaded', () => {
+  // Upload dataset
+  document.getElementById('uploadBtn')?.addEventListener('click', handleFileUpload);
 
-  preprocessedDataDiv.innerHTML = '⏳ Memuat data hasil preprocessing...';
-
-  try {
-    const response = await fetch('/preprocess');
-    const result = await response.json();
-
-    if (response.ok) {
-      const { processed, shape_processed } = result;
-      preprocessedDataDiv.innerHTML = `<p>📄 Jumlah Baris: ${shape_processed[0]}</p>` + buildTable(processed);
-    } else {
-      preprocessedDataDiv.innerText = `❌ ${result.error || 'Gagal memuat data'}`;
+  // Tampilkan isi dataset
+  document.getElementById('showBtn')?.addEventListener('click', async () => {
+    const container = document.getElementById('tableContainer');
+    container.innerHTML = '⏳ Memuat data...';
+    try {
+      const res = await fetch('/show_dataset');
+      const result = await res.json();
+      if (res.ok) {
+        const { data, shape, columns } = result;
+        let html = `<p class="mb-2">📄 Shape Data: ${shape.rows}, ${shape.columns}</p>`;
+        html += '<table class="table-auto w-full border border-gray-300"><thead><tr>';
+        columns.forEach(col => html += `<th class="px-2 py-1 border bg-gray-100">${col}</th>`);
+        html += '</tr></thead><tbody>';
+        data.forEach(row => {
+          html += '<tr>' + columns.map(col => `<td class="px-2 py-1 border">${row[col]}</td>`).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      } else {
+        container.innerText = `❌ ${result.error || 'Gagal menampilkan data'}`;
+      }
+    } catch (err) {
+      container.innerText = '❌ Terjadi kesalahan saat mengambil data.';
     }
-  } catch (error) {
-    console.error(error);
-    preprocessedDataDiv.innerText = '❌ Terjadi kesalahan saat memuat data.';
-  }
+  });
+
+  // Preprocessing
+  document.getElementById('preprocessBtn')?.addEventListener('click', async () => {
+    const target = document.getElementById('preprocessedData');
+    target.innerHTML = '⏳ Memuat data hasil preprocessing...';
+    try {
+      const res = await fetch('/preprocess');
+      const result = await res.json();
+      target.innerHTML = res.ok
+        ? `<p>📄 Jumlah Baris: ${result.shape_processed[0]}</p>` + buildTable(result.processed)
+        : `❌ ${result.error || 'Gagal memuat data'}`;
+    } catch (err) {
+      console.error(err);
+      target.innerHTML = '❌ Terjadi kesalahan saat memuat data.';
+    }
+  });
+
+  // Tokenisasi dengan progres bar (EventSource)
+  document.getElementById('startTokenizeProgress')?.addEventListener('click', () => {
+    const es = new EventSource('/start-tokenization');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressPercent');
+    const progressStatus = document.getElementById('progressStatus');
+    const container = document.getElementById('progressContainer');
+    const barTitle = document.getElementById('barTitle');
+
+    container.classList.remove('hidden');
+    progressBar.style.width = '0%';
+    progressBar.className = 'h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out';
+    progressText.textContent = '0%';
+    progressStatus.textContent = 'Memulai tokenisasi...';
+
+    es.onmessage = (e) => {
+      const data = e.data.trim();
+      if (data === 'ALREADY_EXISTS') {
+        progressBar.style.width = '100%';
+        progressBar.classList.replace('bg-blue-600', 'bg-green-500');
+        progressText.textContent = '100%';
+        progressStatus.textContent = 'Embedding sudah ada. Tidak perlu tokenisasi.';
+        barTitle.classList.replace('text-blue-700', 'text-green-600');
+        progressText.classList.replace('text-blue-700', 'text-green-600');
+        es.close();
+        return;
+      }
+
+      const match = data.match(/Tokenizing:\s*(\d+)%/);
+      
+      if (match) {
+        const percent = parseInt(match[1]);
+        progressBar.style.width = percent + '%';
+        progressText.textContent = percent + '%';
+        progressStatus.textContent = 'Memproses tweet...';
+      }
+
+      if (data.includes('DONE')) {
+        progressBar.style.width = '100%';
+        progressBar.classList.replace('bg-blue-600', 'bg-green-500');
+        progressText.textContent = '100%';
+        progressStatus.textContent = 'Tokenisasi selesai!';
+        barTitle.classList.replace('text-blue-700', 'text-green-600');
+        progressText.classList.replace('text-blue-700', 'text-green-600');
+        es.close();
+      }
+    };
+
+    es.onerror = () => {
+      progressStatus.textContent = '❌ Terjadi kesalahan saat tokenisasi.';
+      progressBar.classList.replace('bg-blue-600', 'bg-red-500');
+      es.close();
+    };
+  });
+
+  // Tampilkan sampel hasil tokenisasi
+  document.getElementById('showTokenSample')?.addEventListener('click', async () => {
+    const output = document.getElementById('tokenResult');
+    const preText = document.getElementById('preTokenText');
+    const tokenTitle = document.getElementById('tokenTitle');
+
+    output.innerHTML = 'Memuat...';
+    preText.textContent = 'Loading...';
+    tokenTitle.textContent = 'Hasil Tokenisasi:';
+
+    try {
+      const res = await fetch('/tokenization-sample');
+      const data = await res.json();
+
+      if (data.error) {
+        output.innerHTML = `<p class="text-red-500">${data.error}</p>`;
+        preText.textContent = '-';
+        return;
+      }
+
+      preText.textContent = data.text;
+      tokenTitle.textContent = `Hasil Tokenisasi (embedding shape ${data.embedding_shape.join(', ')}):`;
+
+      let tableHTML = `
+        <table class="table-auto w-full border border-gray-300">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="border px-2 py-1">#</th>
+              <th class="border px-2 py-1">Token</th>
+              <th class="border px-2 py-1">Token ID</th>
+              <th class="border px-2 py-1">Embedding (Preview)</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      data.tokens.forEach((tok, i) => {
+        tableHTML += `
+          <tr>
+            <td class="border px-2 py-1 text-center">${i + 1}</td>
+            <td class="border px-2 py-1">${tok}</td>
+            <td class="border px-2 py-1 text-center">${data.token_ids[i]}</td>
+            <td class="border px-2 py-1 text-xs">${data.embedding_preview[i]?.map(n => n.toFixed(4)).join(', ') || '-'}</td>
+          </tr>
+        `;
+      });
+
+      tableHTML += '</tbody></table>';
+      output.innerHTML = tableHTML;
+
+    } catch (err) {
+      console.error(err);
+      output.innerHTML = '<p class="text-red-500">Gagal memuat hasil tokenisasi.</p>';
+    }
+  });
 });
 
-//Frontend handling tokenization
-document.getElementById('startTokenizeProgress').addEventListener('click', () => {
-  const eventSource = new EventSource('/start-tokenization');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressPercent');
-  const progressStatus = document.getElementById('progressStatus');
-  const container = document.getElementById('progressContainer');
-  const barTitle = document.getElementById('barTitle')
+// Event untuk tuning hyperparameter
+document.getElementById("btnTune").addEventListener("click", () => {
+  const eventSource = new EventSource("/start-tuning");
+  const logElement = document.getElementById("tuningLog");
+  const tableBody = document.querySelector("#tune table tbody");
+  const spinner = document.getElementById("tuningSpinner");
 
-  container.classList.remove('hidden');
-  progressBar.style.width = '0%';
-  progressBar.className = 'h-4 bg-blue-600 rounded-full transition-all duration-300 ease-out';
-  progressText.textContent = '0%';
-  progressStatus.textContent = 'Memulai tokenisasi...';
+  logElement.innerText = "";
+  tableBody.innerHTML = "";
+  spinner.style.display = "inline-block";
 
-  eventSource.onmessage = function(event) {
-    const data = event.data.trim();
-    if (data === 'ALREADY_EXISTS') {
-      progressBar.style.width = '100%';
-      progressBar.classList.replace('bg-blue-600', 'bg-green-500');
-      progressText.textContent = '100%';
-      progressStatus.textContent = 'Embedding sudah ada. Tidak perlu melakukan tokenisasi.';
-      barTitle.classList.replace('text-blue-700', 'text-green-600');
-      progressText.classList.replace('text-blue-700', 'text-green-600');
+  eventSource.onmessage = function (event) {
+    const line = event.data;
+    logElement.innerText += line + "\n";
+    logElement.scrollTop = logElement.scrollHeight;
+
+    if (line.includes("DONE")) {
       eventSource.close();
-      return;
-    }
 
-    const match = data.match(/Tokenizing:\s*(\d+)%/);
-    if (match) {
-      const percent = parseInt(match[1]);
-      progressBar.style.width = percent + '%';
-      progressText.textContent = percent + '%';
-      progressStatus.textContent = 'Memproses tweet...';
-    }
+      setTimeout(() => {
+        fetch('/get-tuning-result')
+          .then(res => res.json())
+          .then(data => {
+            tableBody.innerHTML = "";
+            data.slice(0, 5).forEach(row => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td class="px-4 py-2 text-center">${row.iteration}</td>
+                <td class="px-4 py-2 text-center">${row.params.epochs}</td>
+                <td class="px-4 py-2 text-center">${row.params.units}</td>
+                <td class="px-4 py-2 text-center">${row.params.learning_rate}</td>
+                <td class="px-4 py-2 text-center">${row.params.batch_size}</td>
+                <td class="px-4 py-2 text-center">${row.val_acc.toFixed(4)}</td>`;
+              tableBody.appendChild(tr);
+            });
 
-    if (data.includes('DONE')) {
-      progressBar.style.width = '100%';
-      progressBar.classList.replace('bg-blue-600', 'bg-green-500');
-      progressText.textContent = '100%';
-      progressStatus.textContent = 'Tokenisasi selesai!';
-      barTitle.classList.replace('text-blue-700', 'text-green-600');
-      progressText.classList.replace('text-blue-700', 'text-green-600'); 
-      eventSource.close();
+            return fetch('/get-best-params');
+          })
+          .then(res => res.json())
+          .then(params => {
+            if (params && Object.keys(params).length) {
+              document.getElementById('epochCell').textContent = params.epochs;
+              document.getElementById('unitsCell').textContent = params.units;
+              document.getElementById('lrCell').textContent = params.learning_rate;
+              document.getElementById('bsCell').textContent = params.batch_size;
+            }
+          })
+          .finally(() => {
+            spinner.style.display = "none";
+          });
+      }, 1000);
     }
   };
 
   eventSource.onerror = () => {
-    progressStatus.textContent = 'Terjadi kesalahan saat tokenisasi.';
-    progressBar.classList.replace('bg-blue-600', 'bg-red-500');
+    logElement.innerText += "\n❌ Terjadi kesalahan saat streaming data.";
     eventSource.close();
+    spinner.style.display = "none";
   };
 });
 
-
-document.getElementById('showTokenSample').addEventListener('click', async () => {
-  const output     = document.getElementById('tokenResult');
-  const preText    = document.getElementById('preTokenText');
-  const tokenTitle = document.getElementById('tokenTitle');
-
-  // state awal
-  output.innerHTML      = 'Memuat...';
-  preText.textContent   = 'Loading...';
-  tokenTitle.textContent = 'Hasil Tokenisasi:';
-
-  // helper jika gagal
-  const handleError = (msg) => {
-    output.innerHTML    = `<p class="text-red-500">${msg}</p>`;
-    preText.textContent = '-';
-    tokenTitle.textContent = 'Hasil Tokenisasi:';
-  };
-
-  try {
-    const res  = await fetch('/tokenization-sample');
-    const data = await res.json();
-
-    if (data.error) {
-      handleError(`Error: ${data.error}`);
-      return;
-    }
-
-    const { text, tokens, token_ids, embedding_shape, embedding_preview } = data;
-
-    preText.textContent   = text;
-    tokenTitle.textContent = `Hasil Tokenisasi (embedding shape ${embedding_shape.join(', ')}):`;
-
-    let tableHTML = `
-      <table class="table-auto w-full border border-gray-300">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border px-2 py-1">#</th>
-            <th class="border px-2 py-1">Token</th>
-            <th class="border px-2 py-1">Token ID</th>
-            <th class="border px-2 py-1">Embedding (Preview)</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    tokens.forEach((tok, i) => {
-      tableHTML += `
-        <tr>
-          <td class="border px-2 py-1 text-center">${i + 1}</td>
-          <td class="border px-2 py-1">${tok}</td>
-          <td class="border px-2 py-1 text-center">${token_ids[i]}</td>
-          <td class="border px-2 py-1 text-xs">${embedding_preview[i]?.map(n => n.toFixed(4)).join(', ') || '-'}</td>
-        </tr>`;
-    });
-
-    tableHTML += '</tbody></table>';
-    output.innerHTML = tableHTML;
-
-  } catch (err) {
-    console.error(err);
-    handleError('Gagal memuat hasil tokenisasi.');
-  }
-});
-
-
-//Tuning
-document.getElementById("btnTune").addEventListener("click", () => {
-    const eventSource = new EventSource("/start-tuning");
-
-    const logElement = document.getElementById("tuningLog");
-    const tableBody = document.querySelector("#tune table tbody");
-    const spinner = document.getElementById("tuningSpinner");
-
-    logElement.innerText = "";
-    tableBody.innerHTML = "";
-
-    // Tampilkan spinner saat tuning mulai
-    spinner.style.display = "inline-block";
-
-    eventSource.onmessage = function(event) {
-        const line = event.data;
-
-        logElement.textContent += line + "\n";
-        logElement.scrollTop = logElement.scrollHeight;
-
-        if (line.includes("DONE")) {
-            eventSource.close();
-            // Delay untuk memberi waktu tulis file
-            setTimeout(() => {
-                fetch('/get-tuning-result')
-                    .then(response => response.json())
-                    .then(data => {
-                        tableBody.innerHTML = "";
-                        data.slice(0, 5).forEach(row => {
-                          const tr = document.createElement("tr");
-                          tr.innerHTML = `
-                            <td class="px-4 py-2 text-center align-middle">${row.iteration}</td>
-                            <td class="px-4 py-2 text-center align-middle">${row.params.epochs}</td>
-                            <td class="px-4 py-2 text-center align-middle">${row.params.units}</td>
-                            <td class="px-4 py-2 text-center align-middle">${row.params.learning_rate}</td>
-                            <td class="px-4 py-2 text-center align-middle">${row.params.batch_size}</td>
-                            <td class="px-4 py-2 text-center align-middle">${row.val_acc.toFixed(4)}</td>
-                          `;
-                          tableBody.appendChild(tr);
-                        });
-                        fetch('/get-best-params')
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data && Object.keys(data).length > 0) {
-                                document.getElementById('epochCell').textContent = data.epochs;
-                                document.getElementById('unitsCell').textContent = data.units;
-                                document.getElementById('lrCell').textContent = data.learning_rate;
-                                document.getElementById('bsCell').textContent = data.batch_size;
-                              }
-                            });
-                    })
-                    .catch(err => {
-                        logElement.innerText += "\n❌ Gagal memuat hasil tuning: " + err.message;
-                    })
-                    .finally(() => {
-                        // Sembunyikan spinner setelah selesai
-                        spinner.style.display = "none";
-                    });
-            }, 1000);
-        }
-    };
-
-    eventSource.onerror = function() {
-        logElement.innerText += "\n❌ Terjadi kesalahan saat streaming data.";
-        eventSource.close();
-        spinner.style.display = "none";
-    };
-});
-
+// Proses pelatihan model
 document.addEventListener('DOMContentLoaded', () => {
-  const trainBtn      = document.getElementById('trainBtn');
-  const logArea       = document.getElementById('logArea');
-  const spinner       = document.getElementById('spinner');
-  const showPlotBtn   = document.getElementById('showPlotBtn');
-  const showPlotWrap  = document.getElementById('showPlotWrapper');
+  const trainBtn = document.getElementById('trainBtn');
+  const logArea = document.getElementById('logArea');
+  const spinner = document.getElementById('spinner');
+  const showPlotBtn = document.getElementById('showPlotBtn');
+  const showPlotWrap = document.getElementById('showPlotWrapper');
   const plotContainer = document.getElementById('trainingPlotContainer');
-  const plotImg       = document.getElementById('trainingPlot');
+  const plotImg = document.getElementById('trainingPlot');
 
-  /* --- tampilkan best params (tidak berubah) --- */
+  // Ambil parameter terbaik
   fetch('/get-best-params')
-    .then(r => r.json())
-    .then(d => {
-      if (d && Object.keys(d).length) {
-        epochCell.textContent = d.epochs;
-        unitsCell.textContent = d.units;
-        lrCell.textContent    = d.learning_rate;
-        bsCell.textContent    = d.batch_size;
+    .then(res => res.json())
+    .then(p => {
+      if (p && Object.keys(p).length) {
+        epochCell.textContent = p.epochs;
+        unitsCell.textContent = p.units;
+        lrCell.textContent = p.learning_rate;
+        bsCell.textContent = p.batch_size;
       }
     });
 
-  /* -------- MULAI TRAINING -------- */
   trainBtn.addEventListener('click', () => {
-    logArea.textContent = '[INFO] Memulai training...\n';
+    logArea.textContent = 'Memulai training...\n';
     spinner.classList.remove('hidden');
     showPlotWrap.classList.add('hidden');
     plotContainer.classList.add('hidden');
@@ -401,23 +321,16 @@ document.addEventListener('DOMContentLoaded', () => {
       logArea.textContent += e.data + '\n';
       logArea.scrollTop = logArea.scrollHeight;
 
-      /* training selesai? */
       if (e.data.includes('Training selesai')) {
         spinner.classList.add('hidden');
-        es.close();
-
-        /* tampilkan tombol lihat plot */
         showPlotWrap.classList.remove('hidden');
+        es.close();
       }
     };
   });
 
-  /* -------- TOMBOL LIHAT PLOT -------- */
   showPlotBtn.addEventListener('click', () => {
-    // tambahkan cache-buster agar tidak pakai gambar lama
     const url = '/evaluation/training_plot.png?' + Date.now();
-
-    // coba load; tampilkan container hanya jika sukses
     const tmp = new Image();
     tmp.onload = () => {
       plotImg.src = url;
@@ -429,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-//Front end handling testing
+// Proses prediksi teks tweet atau testing
 document.addEventListener('DOMContentLoaded', () => {
   const button = document.querySelector('#test button');
   const textarea = document.querySelector('#test textarea');
@@ -460,71 +373,45 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       results.forEach(r => {
-        if (r.error) {
-          resultsContainer.innerHTML = `<p class="text-red-600">${r.error}</p>`;
-          return;
-        }
-
         const div = document.createElement('div');
-        div.classList.add('px-4', 'py-2', 'rounded', 'shadow', 'mb-2', 'transition', 'duration-300');
-
-        if (r.prediction === 1) {
-          div.classList.add('bg-red-100', 'text-red-800', 'font-semibold');
-        } else {
-          div.classList.add('bg-green-100', 'text-green-800');
-        }
-
+        div.className = `px-4 py-2 rounded shadow mb-2 ${r.prediction === 1 ? 'bg-red-100 text-red-800 font-semibold' : 'bg-green-100 text-green-800'}`;
         div.innerHTML = `
           <p><strong>${r.label}</strong></p>
           <p>Probabilitas: <code>${r.probability?.toFixed(6) ?? 'N/A'}</code></p>
-          <p>Prediksi Biner: <strong>${r.prediction}</strong></p>
-        `;
-
+          <p>Prediksi Biner: <strong>${r.prediction}</strong></p>`;
         resultsContainer.appendChild(div);
       });
     } catch (error) {
-      resultsContainer.innerHTML = `<p class="text-red-600">Model belum ada, silakan latih model terlebih dahulu.</p>
-      <br>
-      <p class="text-red-600">Error: ${error.message}</p>`;
+      resultsContainer.innerHTML = `<p class="text-red-600">Model belum ada, silakan latih model terlebih dahulu.</p><p>Error: ${error.message}</p>`;
     }
   });
 });
 
-//frontend handling evaluation
+// Evaluasi model (confusion matrix + classification report + hamming loss)
 document.getElementById("runEvaluation").addEventListener("click", async () => {
   const button = document.getElementById("runEvaluation");
   const div = document.querySelector("#evaluate .mt-6");
   div.innerHTML = "";
 
-  let statusText = document.createElement("span");
-  statusText.id = "eval-status";
-  statusText.className = "ml-2 text-600";
+  const statusText = document.createElement("span");
+  statusText.className = "ml-2 text-gray-600";
   statusText.innerText = "Sedang diproses...";
   button.parentNode.insertBefore(statusText, button.nextSibling);
 
   try {
-    const response = await fetch("/evaluate-model");
-    const data = await response.json();
-
-    if (!response.ok || data.status !== "success") {
-      const msg = data.message || "Terjadi kesalahan saat evaluasi.";
-      div.innerHTML = `<p class="text-red-600">${msg.includes("Model") ? "Model belum ada, silakan melatih model agar dapat dievaluasi." : msg}</p>`;
+    const res = await fetch("/evaluate-model");
+    const data = await res.json();
+    if (!res.ok || data.status !== "success") {
+      div.innerHTML = `<p class="text-red-600">${data.message || 'Terjadi kesalahan saat evaluasi.'}</p>`;
       statusText.remove();
       return;
     }
 
-    // Tambahkan judul Confusion Matrix
-    const cmTitle = document.createElement("h3");
-    cmTitle.innerText = "Confusion Matrix";
-    cmTitle.className = "text-lg font-semibold text-center mt-4 mb-2";
-    div.appendChild(cmTitle);
-
-    // Tambahkan gambar Confusion Matrix
-    const img = document.createElement("img");
-    img.src = data.confusion_matrix;
-    img.alt = "Confusion Matrix";
-    img.className = "mx-auto mt-2 border rounded w-full max-w-4xl";
-    div.appendChild(img);
+    // Confusion Matrix
+    div.innerHTML += `
+      <h3 class="text-lg font-semibold text-center mt-4 mb-2">Confusion Matrix</h3>
+      <img src="${data.confusion_matrix}" alt="Confusion Matrix" class="mx-auto mt-2 border rounded w-full max-w-4xl">
+    `;
 
     // Ambil mean accuracy & loss
     const summaryResp = await fetch("/evaluation/evaluation_score.json");
@@ -534,106 +421,67 @@ document.getElementById("runEvaluation").addEventListener("click", async () => {
     const meanAccuracy = evaluation?.mean_accuracy ?? "N/A";
     const meanLoss = evaluation?.mean_loss ?? "N/A";
 
-    // Tambahkan judul Classification Report
-    const reportTitle = document.createElement("h3");
-    reportTitle.innerText = "Classification Report";
-    reportTitle.className = "text-lg font-semibold mt-6";
-    div.appendChild(reportTitle);
-
-    // Tambahkan teks accuracy & loss
-    const metricP = document.createElement("p");
-    metricP.className = "text-sm text-gray-800 mt-2 mb-1";
-    metricP.innerHTML = `Test Accuracy: <strong>${(parseFloat(meanAccuracy) * 100).toFixed(2)}%</strong> &nbsp; | &nbsp; Test Loss: <strong>${meanLoss}</strong>`;
-    div.appendChild(metricP);
-
-    // Ambil classification report
-    const reportResp = await fetch(data.report);
-    const reportData = await reportResp.json();
-
-    // Bangun tabel classification report
-    let tableHtml = `
-      <table class="table-auto mt-4 w-full border border-collapse border-gray-300">
-        <thead>
-          <tr class="bg-gray-200">
-            <th class="border px-2 py-1">Label</th>
-            <th class="border px-2 py-1">Accuracy</th>
-            <th class="border px-2 py-1">Precision</th>
-            <th class="border px-2 py-1">Recall</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${reportData.filter(row => row.label !== "average").map(row => `
-            <tr>
-              <td class="border px-2 py-1">${row.label}</td>
-              <td class="border px-2 py-1">${(parseFloat(row.accuracy) * 100).toFixed(2)}%</td>
-              <td class="border px-2 py-1">${(parseFloat(row.precision) * 100).toFixed(2)}%</td>
-              <td class="border px-2 py-1">${(parseFloat(row.recall) * 100).toFixed(2)}%</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+    // Classification Report
+    div.innerHTML += `
+      <h3 class="text-lg font-semibold mt-6">Classification Report</h3>
+      <p class="text-sm text-gray-800 mt-2 mb-1">Test Accuracy: <strong>${(parseFloat(meanAccuracy) * 100).toFixed(2)}%</strong> &nbsp; | &nbsp; Test Loss: <strong>${meanLoss}</strong></p>
     `;
 
-    div.innerHTML += tableHtml;
-    
-    // Ambil Hamming Loss data
-    const hammingResp = await fetch("/get-hamming-loss");
-    const hammingData = await hammingResp.json();
-
-    // Tambahkan judul
-    const hammingTitle = document.createElement("h3");
-    hammingTitle.innerText = "Hamming Loss Table";
-    hammingTitle.className = "text-lg font-semibold mt-6";
-    div.appendChild(hammingTitle);
-
-    // Hitung similarity score (berdasarkan Hamming Loss)
-    const meanHamming = hammingData.reduce((sum, row) => sum + parseFloat(row.Hamming_Loss), 0) / hammingData.length;
-    const similarityScore = 1 - meanHamming;
-    const similarityPercent = (similarityScore * 100).toFixed(2);
-
-    const scoreParagraph = document.createElement("p");
-    scoreParagraph.className = "text-sm text-gray-800 mt-2 mb-1";
-    scoreParagraph.innerHTML = `Similarity Score: <strong>${similarityPercent}%</strong> &nbsp; | &nbsp; Mean Hamming Loss : <strong>${meanHamming.toFixed(4)}</strong>`;
-    div.appendChild(scoreParagraph);
-
-    // Buat tabel scrollable
-    const tableWrapper = document.createElement("div");
-    tableWrapper.className = "overflow-x-auto max-h-96 overflow-y-scroll border mt-2 rounded";
-
-    let hammingTable = `
-      <table class="table-auto w-full border border-collapse border-gray-300">
+    const report = await (await fetch(data.report)).json();
+    div.innerHTML += `
+      <table class="table-auto mt-4 w-full border border-collapse border-gray-300">
         <thead class="bg-gray-200">
           <tr>
-            <th class="border px-2 py-1">No.</th>
-            <th class="border px-2 py-1">Tweet</th>
-            <th class="border px-2 py-1">Hamming Loss</th>
+            <th class="border px-2 py-1">Label</th>
+            <th class="border px-2 py-1">Accuracy</th>
+            <th class="border px-2 py-1">Recall</th>
+            <th class="border px-2 py-1">Precision</th>
           </tr>
         </thead>
         <tbody>
-          ${hammingData.map((row, index) => `
+          ${report.map(row => `
             <tr>
-              <td class="border px-2 py-1 text-center">${index + 1}</td>
-              <td class="border px-2 py-1">${row.Tweet}</td>
-              <td class="border px-2 py-1 text-center">${parseFloat(row.Hamming_Loss).toFixed(4)}</td>
-            </tr>
-          `).join("")}
+              <td class="border px-2 py-1">${row.label}</td>
+              <td class="border px-2 py-1">${parseFloat(row.accuracy).toFixed(4)}</td>
+              <td class="border px-2 py-1">${parseFloat(row.recall).toFixed(4)}</td>
+              <td class="border px-2 py-1">${parseFloat(row.precision).toFixed(4)}</td>
+            </tr>`).join('')}
         </tbody>
       </table>
     `;
-    tableWrapper.innerHTML = hammingTable;
-    div.appendChild(tableWrapper);
 
+    // Hamming Loss Table
+    const hammingData = await (await fetch("/get-hamming-loss")).json();
+    const meanHamming = hammingData.reduce((sum, row) => sum + parseFloat(row.Hamming_Loss), 0) / hammingData.length;
+    const similarityScore = 1 - meanHamming;
+    div.innerHTML += `
+      <h3 class="text-lg font-semibold mt-6">Hamming Loss Table</h3>
+      <p class="text-sm text-gray-800 mt-2 mb-1">Similarity Score: <strong>${(similarityScore * 100).toFixed(2)}%</strong> | Mean Hamming Loss: <strong>${meanHamming.toFixed(4)}</strong></p>
+      <div class="overflow-x-auto max-h-96 overflow-y-scroll border mt-2 rounded">
+        <table class="table-auto w-full border border-collapse border-gray-300">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="border px-2 py-1">No.</th>
+              <th class="border px-2 py-1">Tweet</th>
+              <th class="border px-2 py-1">Hamming Loss</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${hammingData.map((row, i) => `
+              <tr>
+                <td class="border px-2 py-1 text-center">${i + 1}</td>
+                <td class="border px-2 py-1">${row.Tweet}</td>
+                <td class="border px-2 py-1 text-center">${parseFloat(row.Hamming_Loss).toFixed(4)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
   } catch (err) {
-    div.innerHTML = `<p class="text-red-600">Model belum ada, silakan melatih model agar dapat dievaluasi.</p>`;
     console.error(err);
+    div.innerHTML = `<p class="text-red-600">❌ Terjadi kesalahan saat evaluasi.</p>`;
+  } finally {
+    statusText.remove();
   }
-
-  const existingStatus = document.getElementById("eval-status");
-  if (existingStatus) existingStatus.remove();
 });
-
-
-
-
-
 
